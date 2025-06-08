@@ -1,4 +1,5 @@
 import re
+from nltk.tokenize import word_tokenize
 def split_into_sentences(essay):
     _SENTENCE_SPLIT_REGEX = re.compile(r'[.!?;؟،:]\s+')
     return _SENTENCE_SPLIT_REGEX.split(essay)
@@ -29,3 +30,6 @@ def split_into_paragraphs(essay):
     # Add the remaining text as the third paragraph
     paragraphs.append(essay[start:].strip()) 
     return paragraphs
+
+def split_into_words(essay):
+    return word_tokenize(re.sub(r'[^\w\s]', '', essay))
