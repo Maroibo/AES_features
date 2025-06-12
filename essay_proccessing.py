@@ -33,3 +33,8 @@ def split_into_paragraphs(essay):
 
 def split_into_words(essay):
     return word_tokenize(re.sub(r'[^\w\s]', '', essay))
+
+
+def count_chars(essay):
+    char_count = len(essay.replace(" ", ""))
+    return char_count
