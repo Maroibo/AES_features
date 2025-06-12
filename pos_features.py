@@ -96,3 +96,4 @@ def get_essay_pos_features(essay, pos_tags_list, pos_bigrams_list):
             features[f'pos_bigram_{bigram[0]}_{bigram[1]}'] += 1
     
     return features
+
