@@ -4,7 +4,7 @@ from essay_proccessing import split_into_words, count_chars, split_into_sentence
 import math
 import re
 import pandas as pd
-from semantic_features import calculate_syllable_features
+from syntactic_features import calculate_syllable_features
 
 
 def calculate_readability_scores(essay):

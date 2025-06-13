@@ -1,46 +1,192 @@
+from nltk.corpus import stopwords
+from camel_tools_init import get_disambiguator,get_analyzer
+from camel_tools.utils.normalize import normalize_unicode
+from essay_proccessing import split_into_words, split_into_sentences
+import re
+from collections import defaultdict
+import torch
+from collections import Counter
+import pandas as pd
+
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+_mle_disambiguator = get_disambiguator()
+_morph_analyzer = get_analyzer()
+
+# Initialize Arabic stopwords
+ARABIC_STOPWORDS = set(stopwords.words('arabic'))
+
+
+def syllabify_arabic_word(word):
+    """
+    Syllabify an Arabic word based on the rules from Zeki et al.
+    
+    Rules:
+    - Every syllable begins with a consonant followed by a vowel
+    - Syllable types: CV, CVV, CVC, CVVC, CVCC
+    """
+    # Define Arabic character sets
+    consonants = "ءأؤإئابتثجحخدذرزسشصضطظعغفقكلمنهوي"
+    long_vowels = "اوي"  # alif, waw, yaa
+    short_vowels = "َُِ"  # fatha, damma, kasra
+    sukoon = "ْ"  # sukoon marks absence of vowel
+    shadda = "ّ"  # gemination mark (doubles consonant)
+    
+    # Normalize word: handle shadda by duplicating the consonant
+    normalized = ""
+    i = 0
+    while i < len(word):
+        normalized += word[i]
+        if i < len(word) - 1 and word[i+1] == shadda:
+            normalized += word[i]  # Duplicate the consonant
+            i += 2
+        else:
+            i += 1
+    
+    word = normalized
+    
+    # Syllabify
+    syllables = []
+    i = 0
+    current_syllable = ""
+    
+    while i < len(word):
+        # Skip non-Arabic characters
+        if not (word[i] in consonants or word[i] in short_vowels or 
+                word[i] in long_vowels or word[i] in sukoon):
+            i += 1
+            continue
+            
+        # 1. Each syllable must start with a consonant
+        if word[i] in consonants:
+            current_syllable = word[i]
+            i += 1
+            
+            # 2. Followed by a vowel (short or long)
+            if i < len(word):
+                # Case: short vowel (diacritic)
+                if word[i] in short_vowels:
+                    current_syllable += word[i]
+                    i += 1
+                    
+                    # Check for CV pattern (end of syllable)
+                    if i >= len(word) or word[i] in consonants:
+                        if i < len(word) and word[i] in consonants:
+                            # Check for CVC pattern
+                            if i + 1 < len(word) and word[i+1] == sukoon:
+                                current_syllable += word[i] + word[i+1]
+                                i += 2
+                            # Check for CVCC pattern (when followed by two consonants with sukoon)
+                            elif i + 3 < len(word) and word[i+1] in consonants and word[i+2] == sukoon:
+                                current_syllable += word[i] + word[i+1] + word[i+2]
+                                i += 3
+                        
+                        syllables.append(current_syllable)
+                        current_syllable = ""
+                    
+                # Case: long vowel
+                elif word[i] in long_vowels:
+                    current_syllable += word[i]
+                    i += 1
+                    
+                    # Check for CVV pattern (end of syllable)
+                    if i >= len(word) or word[i] in consonants:
+                        if i < len(word) and word[i] in consonants:
+                            # Check for CVVC pattern
+                            if i + 1 < len(word) and word[i+1] == sukoon:
+                                current_syllable += word[i] + word[i+1]
+                                i += 2
+                        
+                        syllables.append(current_syllable)
+                        current_syllable = ""
+                else:
+                    # Consonant without vowel - assume implicit vowel
+                    syllables.append(current_syllable)
+                    current_syllable = ""
+            else:
+                # End of word with just a consonant - assume implicit vowel
+                syllables.append(current_syllable)
+                current_syllable = ""
+        else:
+            # Skip anything that doesn't start a valid syllable
+            i += 1
+    
+    # Add any remaining syllable
+    if current_syllable:
+        syllables.append(current_syllable)
+    
+    return syllables
+
+
+def syllabify_arabic_text(essay):
+    """Syllabify Arabic text with or without diacritics."""
+    words = split_into_words(essay)
+    all_syllables = []
+    for word in words:
+        all_syllables.extend(syllabify_arabic_word(word))
+    return all_syllables, words
+
+def calculate_syllable_features(essay):
+    """
+    Calculate syllable-related features for Arabic text including:
+    - syllables: total number of syllables
+    - syll_per_word: average syllables per word
+    - complex_words: words with 3+ syllables
+    - complex_words_dc: words that would be considered difficult per Dale-Chall criteria
+    """
+    # Get syllables and words
+    syllables, words = syllabify_arabic_text(essay)
+    # Count total syllables
+    syllable_count = len(syllables)
+    # Get word count
+    word_count = len(words)
+    # Calculate syllables per word
+    syll_per_word = syllable_count / word_count if word_count > 0 else 0
+    # Count words that are not in our Arabic adaptation of Dale-Chall list
+    complex_words_dc_count = 0
+    
+    for i, word in enumerate(words):
+        word_normalized = normalize_unicode(word.strip())
+        word_syllables = syllabify_arabic_word(word)
+        syllable_count_per_word = len(word_syllables)
+        # Count words that would be considered difficult per Dale-Chall criteria
+        # For Arabic: Words that are not stopwords AND (have 3+ syllables OR are 6+ characters)
+        is_difficult = (
+            word_normalized not in ARABIC_STOPWORDS and
+            (syllable_count_per_word >= 3 or len(word_normalized) >= 6)
+        )
+        if is_difficult:
+            complex_words_dc_count += 1
+    
+    return {
+        "syllables": syllable_count,
+        "syll_per_word": syll_per_word,
+        "complex_words_dc": complex_words_dc_count
+    }
+
+
 def calculate_pronoun_features(essay):
     """Extract pronoun features using CAMeL Tools with optimized processing."""
     features = {}
     pronoun_counts = defaultdict(int)
-    group_counts = defaultdict(int)
-    
+    group_counts = defaultdict(int)  
     # Get cached sentences
     sentences = split_into_sentences(essay)
-    if not sentences:
-        return {}
     
     # Track sentence-level statistics
     sentences_with_pronoun = defaultdict(set)
     
     # Process each sentence
     for sent_idx, sentence in enumerate(sentences):
-        if not sentence.strip():
-            continue
         
-        # Check cache first
-        if sentence in _SENTENCE_CACHE and 'analyses' in _SENTENCE_CACHE[sentence]:
-            analyses = _SENTENCE_CACHE[sentence]['analyses']
-        else:
-            # Get POS tags using CAMeL Tools
-            mle = get_disambiguator()
-            words = simple_word_tokenize(sentence)
-            analyses = mle.disambiguate(words)
-            
-            # Cache the results
-            if sentence in _SENTENCE_CACHE:
-                _SENTENCE_CACHE[sentence]['analyses'] = analyses
-            else:
-                _SENTENCE_CACHE[sentence] = {'analyses': analyses}
+        # Get POS tags using CAMeL Tools
+        words = split_into_words(sentence)
+        analyses = _mle_disambiguator.disambiguate(words)
         
         # Process each word analysis
         for word_idx, analysis in enumerate(analyses):
-            if not analysis.analyses:
-                continue
-            
             # Get the top analysis
             top_analysis = analysis.analyses[0].analysis
             pos = top_analysis.get('pos', '')
-            
             # Check for pronouns using CAMeL Tools POS tags
             if pos == 'pron' or pos == 'pron_dem':
                 # Get more specific features
@@ -95,51 +241,36 @@ def calculate_possessive_features(essay):
     features = {}
     poss_counts = defaultdict(int)
     
-    # Get cached sentences
     sentences = split_into_sentences(essay)
-    if not sentences:
-        return {}
-    
-    # Track sentence-level statistics
     sentences_with_poss = set()
     
-    # Get morphological analyzer
-    analyzer = get_analyzer()
-    
-    # Process each sentence
     for sent_idx, sentence in enumerate(sentences):
-        if not sentence.strip():
-            continue
-        
         has_poss_in_sentence = False
-        words = simple_word_tokenize(sentence)
+        words = split_into_words(sentence)
         
         for word in words:
-            # Analyze the word
-            analyses = analyzer.analyze(word)
+            analyses = _morph_analyzer.analyze(word)
             
             for analysis in analyses:
-                # Check for possessive features in CAMeL Tools analysis
-                # Look for enclitic possessive pronouns
                 enc0 = analysis.get('enc0', '0')
                 
-                if enc0 != '0' and 'POSS' in enc0:
+                # Look for possessive pronouns (end with _poss)
+                if enc0 != '0' and enc0.endswith('_poss'):
                     has_poss_in_sentence = True
+                    poss_counts['general_possessive'] += 1
                     
-                    # Determine possessive person
-                    if '1S' in enc0 or '1P' in enc0:
+                    # Extract person from the enc0 value
+                    if enc0.startswith('1'):  # 1s_poss, 1p_poss
                         poss_counts['first_person_poss'] += 1
-                    elif '2' in enc0:  # All 2nd person forms
+                    elif enc0.startswith('2'):  # 2ms_poss, 2fs_poss, 2p_poss
                         poss_counts['second_person_poss'] += 1
-                    elif '3' in enc0:  # All 3rd person forms
+                    elif enc0.startswith('3'):  # 3ms_poss, 3fs_poss, 3p_poss
                         poss_counts['third_person_poss'] += 1
                     
-                    # We found at least one possessive in this analysis
-                    break
-            
-            if has_poss_in_sentence:
-                poss_counts['general_possessive'] += 1
-                sentences_with_poss.add(sent_idx)
+                    break  # Found possessive in this analysis
+        
+        if has_poss_in_sentence:
+            sentences_with_poss.add(sent_idx)
     
     # Add counts to features
     for poss_type, count in poss_counts.items():
@@ -154,139 +285,6 @@ def calculate_possessive_features(essay):
     return features
 
 
-def calculate_clause_features(essay):
-    """
-    Calculates various clause-related features including:
-    - mean_clause: average number of words in each clause
-    - clause_per_s: average number of clauses per sentence
-    - sent_ave_depth: average parse tree depth per sentence
-    - ave_leaf_depth: average parse depth of leaf nodes
-    - max_clause_in_s: maximum number of clauses in any sentence
-    """
-    try:
-        # Common Arabic coordinating conjunctions
-        conjunctions = ['و', 'أو', 'ثم', 'ف', 'لكن', 'بل', 'أم', 'حتى']
-        
-        # Split into sentences first
-        sentences = list(filter(str.strip, re.split(r'[.،!؛:؟]', essay)))
-        
-        # Initialize lists to store metrics
-        clauses_per_sentence = []
-        sentence_depths = []
-        leaf_depths = []
-        clause_lengths = []
-        
-        tagger = get_tagger()  # Get tagger once for all sentences
-        
-        for sentence in sentences:
-            try:
-                # Create a regex pattern for splitting on conjunctions
-                pattern = '|'.join(r'\s+{}\s+'.format(conj) for conj in conjunctions)
-                
-                # Split sentence into clauses
-                clauses = re.split(pattern, sentence)
-                clauses = [clause.strip() for clause in clauses if clause.strip()]
-                
-                # Store number of clauses in this sentence
-                clauses_per_sentence.append(len(clauses))
-                
-                # Calculate clause lengths
-                for clause in clauses:
-                    words = word_tokenize(clause)
-                    clause_lengths.append(len(words))
-                
-                # Get parse tree information if tagger is available
-                if tagger is not None:
-                    try:
-                        normalized = normalize_unicode(dediac_ar(sentence))
-                        tokens = simple_word_tokenize(normalized)
-                        analyses = tagger.tag(tokens)
-                        
-                        # Calculate parse tree depths
-                        max_depth = 0
-                        leaf_depth_sum = 0
-                        leaf_count = 0
-                        
-                        for analysis in analyses:
-                            # The analysis is now a string, not an object
-                            if analysis:  # If there's a POS tag
-                                depth = len(analysis.split('/'))  # Count levels in POS tag
-                                max_depth = max(max_depth, depth)
-                                
-                                # If it's a leaf node (no further subdivisions)
-                                if '/' not in analysis:
-                                    leaf_depth_sum += depth
-                                    leaf_count += 1
-                        
-                        sentence_depths.append(max_depth if max_depth > 0 else 1)
-                        if leaf_count > 0:
-                            leaf_depths.append(leaf_depth_sum / leaf_count)
-                        else:
-                            leaf_depths.append(1)
-                    except Exception:
-                        sentence_depths.append(1)
-                        leaf_depths.append(1)
-                else:
-                    sentence_depths.append(1)
-                    leaf_depths.append(1)
-                    
-            except Exception:
-                sentence_depths.append(1)
-                leaf_depths.append(1)
-        
-        # Calculate final metrics with error handling
-        mean_clause = sum(clause_lengths) / len(clause_lengths) if clause_lengths else 1
-        clause_per_s = sum(clauses_per_sentence) / len(sentences) if sentences else 1
-        sent_ave_depth = sum(sentence_depths) / len(sentences) if sentences else 1
-        ave_leaf_depth = sum(leaf_depths) / len(leaf_depths) if leaf_depths else 1
-        max_clause_in_s = max(clauses_per_sentence) if clauses_per_sentence else 1
-        
-        return {
-            "mean_clause": mean_clause,
-            "clause_per_s": clause_per_s,
-            "sent_ave_depth": sent_ave_depth,
-            "ave_leaf_depth": ave_leaf_depth,
-            "max_clause_in_s": max_clause_in_s
-        }
-        
-    except Exception:
-        # Return default values if calculation fails
-        return {
-            "mean_clause": 0,
-            "clause_per_s": 0,
-            "sent_ave_depth": 0,
-            "ave_leaf_depth": 0,
-            "max_clause_in_s": 0
-        }
-
-def calculate_complexity_features(essay):
-    """
-    Calculates complexity-related features for Arabic text including:
-    - sentences: total number of sentences
-    - paragraphs: total number of paragraphs
-    - long_words: words with 7 or more characters
-    """
-    # Split into sentences using Arabic punctuation
-    sentences = list(filter(str.strip, re.split(r'[.،!؛:؟]', essay)))
-    sentences_count = len(sentences)
-    
-    # Split into paragraphs
-    paragraphs = essay.split('\n\n')
-    paragraphs_count = len(paragraphs)
-    
-    # Process words
-    words = word_tokenize(re.sub(r'[^\w\s]', '', essay))
-    
-    # Count long words (7 or more characters)
-    long_words_count = sum(1 for word in words if len(word) >= 7)
-    
-    return {
-        "sentences": sentences_count,
-        "long_words": long_words_count
-    }
-
-# First, create a global variable to store the top N words
-_TOP_N_WORDS = None
 
 def get_top_n_words_from_essays(essays, n=100):
     """
@@ -297,30 +295,23 @@ def get_top_n_words_from_essays(essays, n=100):
         n (int): Number of top words to consider
     Returns:
         set: Set of top N words
-    """
-    global _TOP_N_WORDS
-    if _TOP_N_WORDS is not None:
-        return _TOP_N_WORDS
-        
+    """        
     # Count words across all essays
     total_word_counts = Counter()
     
     for essay in essays:
         # Normalize and tokenize text
         normalized_text = normalize_unicode(essay)
-        words = word_tokenize(re.sub(r'[^\w\s]', '', normalized_text))
+        words = split_into_words(normalized_text)
         
         # Remove stop words and normalize words
-        words = [dediac_ar(word) for word in words if word not in ARABIC_STOPWORDS]
+        words = [normalize_unicode(word) for word in words if word not in ARABIC_STOPWORDS]
         
         # Update counts
         total_word_counts.update(words)
-    
-    # Get top N words
-    _TOP_N_WORDS = set(word for word, _ in total_word_counts.most_common(n))
-    return _TOP_N_WORDS
+    return total_word_counts
 
-def calculate_top_n_word_features(essay, n=100):
+def calculate_top_n_word_features(essay, total_word_counts, n=100):
     """
     Calculates features related to top N words in the essay.
     Only includes features for the pre-determined top N words across all essays.
@@ -331,13 +322,13 @@ def calculate_top_n_word_features(essay, n=100):
     """
     # Normalize and tokenize text
     normalized_text = normalize_unicode(essay)
-    words = word_tokenize(re.sub(r'[^\w\s]', '', normalized_text))
+    words = split_into_words(essay)
     
     # Remove stop words and normalize words
-    words = [dediac_ar(word) for word in words if word not in ARABIC_STOPWORDS]
+    words = [normalize_unicode(word) for word in words if word not in ARABIC_STOPWORDS]
     
     # Get sentences for sentence-level features
-    sentences = list(filter(str.strip, re.split(r'[.،!؛:؟]', essay)))
+    sentences = split_into_sentences(essay)
     
     # Count word frequencies in this essay
     word_counts = Counter(words)
@@ -348,12 +339,12 @@ def calculate_top_n_word_features(essay, n=100):
     
     for sentence in sentences:
         # Normalize and tokenize sentence
-        sent_words = set(dediac_ar(w) for w in word_tokenize(re.sub(r'[^\w\s]', '', sentence))
+        sent_words = set(normalize_unicode(w) for w in split_into_words(sentence)
                         if w not in ARABIC_STOPWORDS)
         
         # Count sentences containing each word
         for word in sent_words:
-            if word in _TOP_N_WORDS:  # Only count if word is in top N
+            if word in total_word_counts:  # Only count if word is in top N
                 word_sentence_counts[word] += 1
     
     # Calculate sentence percentages
@@ -365,7 +356,7 @@ def calculate_top_n_word_features(essay, n=100):
     features = {}
     
     # Add features only for the pre-determined top N words
-    for word in _TOP_N_WORDS:
+    for word in total_word_counts:
         # Word count features
         features[f"top_n_word_count_{word}"] = word_counts[word]
         
@@ -377,122 +368,249 @@ def calculate_top_n_word_features(essay, n=100):
     
     return features
 
+
+def calculate_clause_features(essay):
+    """
+    Calculates various clause-related features including:
+    - mean_clause: average number of words in each clause
+    - clause_per_s: average number of clauses per sentence
+    - sent_ave_depth: average parse tree depth per sentence
+    - ave_leaf_depth: average parse depth of leaf nodes
+    - max_clause_in_s: maximum number of clauses in any sentence
+    """
+    # Common Arabic coordinating conjunctions
+    all_arabic_conjunctions = [
+    'و', 'أو', 'أم', 'ف', 'ثم', 'لكن', 'لكنَّ', 'بل', 'حتى', 'لا', 
+    'إما', 'كلا', 'إلا', 'غير', 'سوى', 'عدا', 'خلا', 'حاشا', 'ليس',
+    'ما عدا', 'ما خلا', 'ما حاشا',
+    # Subordinating  
+    'أن', 'إن', 'أنَّ', 'إنَّ', 'كأن', 'كأنَّ', 'لأن', 'كي', 'لكي',
+    'إذ', 'إذا', 'لو', 'لولا', 'لوما', 'لمّا', 'مذ', 'منذ', 'ريثما',
+    'بينما', 'طالما', 'كلما', 'أينما', 'حيثما', 'مهما', 'كيفما',
+    'أنَّى', 'حيث', 'بحيث', 'كون', 'ولو', 'وإن',
+    # Multi-word conjunctions
+    'بعد أن', 'قبل أن', 'منذ أن', 'في حين', 'ما دام', 'أيًّا ما',
+    'متى ما', 'إذ أن', 'على أن', 'شريطة أن', 'غير أن', 'سوى أن',
+    'إلا أن', 'بيد أن', 'على الرغم من أن', 'رغم أن', 'مع أن',
+    'برغم أن', 'ولو أن', 'حتى لو', 'حتى وإن'
+    ]
+    
+    # Split into sentences first
+    sentences = split_into_sentences(essay)
+    
+    # Initialize lists to store metrics
+    clauses_per_sentence = []
+    sentence_depths = []
+    leaf_depths = []
+    clause_lengths = []
+    
+    for sentence in sentences:
+       
+        # Create a regex pattern for splitting on conjunctions
+        pattern = '|'.join(r'\s+{}\s+'.format(conj) for conj in all_arabic_conjunctions)
+        
+        # Split sentence into clauses
+        clauses = re.split(pattern, sentence)
+        clauses = [clause.strip() for clause in clauses if clause.strip()]
+        
+        # Store number of clauses in this sentence
+        clauses_per_sentence.append(len(clauses))
+        
+        # Calculate clause lengths
+        for clause in clauses:
+            words = split_into_words(clause)
+            clause_lengths.append(len(words))
+        
+        normalized = normalize_unicode(sentence)
+        tokens = split_into_words(normalized)
+        tokens = [token.strip() for token in tokens]
+        # Analyze each token individually
+        all_analyses = []
+        for token in tokens:
+            analyses = _morph_analyzer.analyze(token)
+            all_analyses.extend(analyses)
+        
+        # Calculate parse tree depths
+        max_depth = 0
+        leaf_depth_sum = 0
+        leaf_count = 0
+        
+        for analysis in all_analyses:
+            # analysis is a dictionary, not a string
+            if analysis and 'bw' in analysis:  # 'bw' contains morphological breakdown
+                bw_analysis = analysis['bw']  # e.g., 'أُ/IV1S+وافِق/IV'
+                
+                # Count morphological complexity levels
+                if bw_analysis:
+                    # Count slashes and plus signs as complexity indicators
+                    complexity = bw_analysis.count('/') + bw_analysis.count('+')
+                    max_depth = max(max_depth, complexity)
+                    
+                    # Simple leaf detection - if no subdivisions
+                    if '/' not in bw_analysis and '+' not in bw_analysis:
+                        leaf_depth_sum += 1
+                        leaf_count += 1
+                    else:
+                        # Count segments
+                        segments = len(bw_analysis.replace('+', '/').split('/'))
+                        leaf_depth_sum += segments
+                        leaf_count += 1
+        
+        sentence_depths.append(max_depth if max_depth > 0 else 1)
+        if leaf_count > 0:
+            leaf_depths.append(leaf_depth_sum / leaf_count)
+        else:
+            leaf_depths.append(1)
+                
+    # Calculate final metrics with error handling
+    mean_clause = sum(clause_lengths) / len(clause_lengths) 
+    clause_per_s = sum(clauses_per_sentence) / len(sentences) 
+    sent_ave_depth = sum(sentence_depths) / len(sentences) 
+    ave_leaf_depth = sum(leaf_depths) / len(leaf_depths)
+    max_clause_in_s = max(clauses_per_sentence) 
+    
+    return {
+        "mean_clause": mean_clause,
+        "clause_per_s": clause_per_s,
+        "sent_ave_depth": sent_ave_depth,
+        "ave_leaf_depth": ave_leaf_depth,
+        "max_clause_in_s": max_clause_in_s
+    }
+
 def calculate_grammar_features(essay):
     """Calculate grammar-related features for Arabic text."""
-    try:
-        # Initialize feature counts
-        features = {
-            "tobeverb": 0,          # كان وأخواتها - Arabic "to be" equivalents
-            "auxverb": 0,           # Auxiliary verbs
-            "conjunction": 0,        # Coordinating conjunctions
-            "pronoun": 0,           # All pronouns
-            "preposition": 0,       # Prepositions
-            "nominalization": 0,    # Masdar forms (verbal nouns)
-            "begin_w_pronoun": 0,    # Sentences starting with pronouns
-            "begin_w_interrogative": 0, # Sentences starting with question words
-            "begin_w_article": 0,    # Sentences starting with definite article
-            "begin_w_subordination": 0, # Sentences starting with subordinating conjunctions
-            "begin_w_conjunction": 0, # Sentences starting with coordinating conjunctions
-            "begin_w_preposition": 0, # Sentences starting with prepositions
-            "spelling_err": 0,       # Misspelled words
-            "prep_comma": 0,         # Prepositions and commas
-        }
-        
-        # Get MLE disambiguator for POS tagging
-        mle = get_disambiguator()
-        
-        # Lists of Arabic POS patterns to match
-        kana_sisters = ["كان", "أصبح", "أضحى", "أمسى", "ظل", "بات", "صار", "ليس", "مازال", "مادام", "مابرح", "مافتئ", "ماانفك"]
-        aux_verbs = ["قد", "سوف", "س", "سـ"]
-        conjunctions = ["و", "أو", "ثم", "ف", "لكن", "بل", "أم", "حتى", "إذ", "إذا", "لو", "كي", "لأن"]
-        subordinating_conj = ["أن", "كي", "لكي", "عندما", "بعدما", "قبلما", "حيثما", "كلما", "طالما", "لو", "إذا", "حتى"]
-        interrogatives = ["من", "ما", "متى", "أين", "كيف", "لماذا", "هل", "أ"]
-        
-        # Split text into sentences
-        sentences = list(filter(str.strip, re.split(r'[.،!؛:؟]', essay)))
-        
-        # Count commas
-        comma_count = essay.count('،')  # Arabic comma
-        
-        # Process each sentence for sentence-beginning features
-        for sentence in sentences:
-            if not sentence.strip():
-                continue
+
+    # Initialize feature counts
+    features = {
+        "kana_sisters": 0,          # كان وأخواتها - Arabic "to be" equivalents  remove
+        "auxverb": 0,           # Auxiliary verbs
+        "conjunction": 0,        # Coordinating conjunctions
+        "pronoun": 0,           # All pronouns
+        "preposition": 0,       # Prepositions
+        "nominalization": 0,    # Masdar forms (verbal nouns)
+        "begin_w_pronoun": 0,    # Sentences starting with pronouns
+        "begin_w_interrogative": 0, # Sentences starting with question words
+        "begin_w_article": 0,    # Sentences starting with definite article
+        "begin_w_subordination": 0, # Sentences starting with subordinating conjunctions
+        "begin_w_conjunction": 0, # Sentences starting with coordinating conjunctions
+        "begin_w_preposition": 0, # Sentences starting with prepositions
+        "prep_comma": 0,         # Prepositions and commas
+    }
+    
+    # Lists of Arabic POS patterns to match
+    kana_sisters = ["كان", "أصبح", "أضحى", "أمسى", "ظل", "بات", "صار", "ليس", "مازال", "مادام", "مابرح", "مافتئ", "ماانفك"]
+    aux_verbs = [
+        # Future tense markers
+        "سوف", "س", "سـ", "سَ",
+        # Past tense markers
+        "قد", "لقد", "ما زال", "ما يزال", "ما برح", "ما يبرح", 
+        "ما انفك", "ما ينفك", "ما فتئ", "ما يفتئ",
+        # Modal auxiliaries
+        "كان", "أصبح", "أضحى", "أمسى", "ظل", "بات", "صار", "ليس",
+        # Aspectual auxiliaries
+        "بدأ", "شرع", "أخذ", "جعل", "عاد", "رجع", "انبرى", "هب"
+        ]
+    conjunctions = [ 
+        'و', 'أو', 'أم', 'ف', 'ثم', 'لكن', 'لكنَّ', 'بل', 'حتى', 'لا', 
+        'إما', 'كلا', 'إلا', 'غير', 'سوى', 'عدا', 'خلا', 'حاشا', 'ليس',
+        'ما عدا', 'ما خلا', 'ما حاشا',
+        # Subordinating  
+        'أن', 'إن', 'أنَّ', 'إنَّ', 'كأن', 'كأنَّ', 'لأن', 'كي', 'لكي',
+        'إذ', 'إذا', 'لو', 'لولا', 'لوما', 'لمّا', 'مذ', 'منذ', 'ريثما',
+        'بينما', 'طالما', 'كلما', 'أينما', 'حيثما', 'مهما', 'كيفما',
+        'أنَّى', 'حيث', 'بحيث', 'كون', 'ولو', 'وإن',
+        # Multi-word conjunctions
+        'بعد أن', 'قبل أن', 'منذ أن', 'في حين', 'ما دام', 'أيًّا ما',
+        'متى ما', 'إذ أن', 'على أن', 'شريطة أن', 'غير أن', 'سوى أن',
+        'إلا أن', 'بيد أن', 'على الرغم من أن', 'رغم أن', 'مع أن',
+        'برغم أن', 'ولو أن', 'حتى لو', 'حتى وإن'
+        ]
+    subordinating_conj = [
+        # Basic subordinating conjunctions
+        "أن", "إن", "أنَّ", "إنَّ", "كأن", "كأنَّ", "لأن", "كي", "لكي",
+        # Time-related conjunctions
+        "عندما", "بعدما", "قبلما", "حيثما", "كلما", "طالما", "متى", "إذ", "إذا",
+        "حين", "حينما", "لمّا", "مذ", "منذ", "ريثما", "بينما",
+        # Conditional conjunctions
+        "لو", "لولا", "لوما", "إذا", "إن", "أما", "أينما", "حيثما", "مهما",
+        "كيفما", "أنَّى", "حيث", "بحيث",
+        # Purpose and result conjunctions
+        "كي", "لكي", "حتى", "لئلا", "كي لا", "لكي لا",
+        # Multi-word subordinating conjunctions
+        "بعد أن", "قبل أن", "منذ أن", "في حين", "ما دام", "أيًّا ما",
+        "متى ما", "إذ أن", "على أن", "شريطة أن", "غير أن", "سوى أن",
+        "إلا أن", "بيد أن", "على الرغم من أن", "رغم أن", "مع أن",
+        "برغم أن", "ولو أن", "حتى لو", "حتى وإن", "كون", "ولو", "وإن"
+        ]
+    interrogatives = [
+        # Basic interrogatives
+        "من", "ما", "متى", "أين", "كيف", "لماذا", "هل", "أ",
+        # Additional interrogatives
+        "أي", "أيان", "أنى", "كم", "كيفما", "أيما", "أينما",
+        # Compound interrogatives
+        "بماذا", "فيم", "علام", "إلام", "إلى متى", "من أين", "إلى أين",
+        "كيف حال", "ما هو", "ما هي", "ما هم", "ما هن", "ما أنت", "ما أنتم",
+        # Interrogative particles
+        "أليس", "ألا", "أما", "أم", "أو", "هل", "أ",
+        # Rhetorical questions
+        "أترى", "أتعلم", "أتدرى", "أتعرف", "أتذكر", "أتخيل", "أتوقع",
+        # Negative interrogatives
+        "أليس", "ألم", "ألا", "أما", "أوما", "أفلا", "أوليس"
+        ]
+    
+    # Split text into sentences
+    sentences = split_into_sentences(essay)
+    
+    # Count commas
+    comma_count = essay.count('،')  # Arabic comma
+    
+    # Process each sentence for sentence-beginning features
+    for sentence in sentences:     
+        # Normalize and get all words
+        normalized = normalize_unicode(sentence.strip())
+        words = split_into_words(normalized)            
+        # Check each word in the sentence
+        for i, word in enumerate(words):
+            # Get POS tag for word
+            word_analysis = _mle_disambiguator.disambiguate([word])
+            if word_analysis and word_analysis[0].analyses:
+                pos = word_analysis[0].analyses[0].analysis['pos']
                 
-            # Normalize and get the first word
-            normalized = normalize_unicode(sentence.strip())
-            words = normalized.split()
-            if not words:
-                continue
-                
-            first_word = words[0]
-            
-            # Get POS tag for first word
-            first_word_analysis = mle.disambiguate([first_word])
-            if first_word_analysis and first_word_analysis[0].analyses:
-                pos = first_word_analysis[0].analyses[0].analysis['pos']
-                
-                # Check beginning patterns - FIXED to handle lowercase tags
+                # Check patterns for each word
                 if pos == 'pron' or pos == 'pron_dem':
-                    features["begin_w_pronoun"] += 1
-                elif first_word in interrogatives:
-                    features["begin_w_interrogative"] += 1
-                elif 'prc0' in first_word_analysis[0].analyses[0].analysis and first_word_analysis[0].analyses[0].analysis['prc0'] == 'Al_det':
-                    features["begin_w_article"] += 1
-                elif first_word in subordinating_conj:
-                    features["begin_w_subordination"] += 1
-                elif first_word in conjunctions or pos == 'conj' or pos == 'conj_sub':
-                    features["begin_w_conjunction"] += 1
+                    if i == 0:  # Only count as beginning if it's the first word
+                        features["begin_w_pronoun"] += 1
+                    features["pronoun"] += 1
+                elif word in interrogatives:
+                    if i == 0:  # Only count as beginning if it's the first word
+                        features["begin_w_interrogative"] += 1
+                elif 'prc0' in word_analysis[0].analyses[0].analysis and word_analysis[0].analyses[0].analysis['prc0'] == 'Al_det':
+                    if i == 0:  # Only count as beginning if it's the first word
+                        features["begin_w_article"] += 1
+                elif word in subordinating_conj:
+                    if i == 0:  # Only count as beginning if it's the first word
+                        features["begin_w_subordination"] += 1
+                elif word in conjunctions or pos == 'conj' or pos == 'conj_sub':
+                    if i == 0:  # Only count as beginning if it's the first word
+                        features["begin_w_conjunction"] += 1
+                    features["conjunction"] += 1
                 elif pos == 'prep':
-                    features["begin_w_preposition"] += 1
-        
-        # Process whole text for POS counts
-        normalized_text = normalize_unicode(essay)
-        text_analysis = mle.disambiguate(normalized_text.split())
-        
-        for word_analysis in text_analysis:
-            if not word_analysis.analyses:
-                # Potentially a spelling error if no analysis found
-                features["spelling_err"] += 1
-                continue
+                    if i == 0:  # Only count as beginning if it's the first word
+                        features["begin_w_preposition"] += 1
+                    features["preposition"] += 1
+                    features["prep_comma"] += 1
+                elif pos == 'verb':
+                    lemma = word_analysis[0].analyses[0].analysis.get('lex', '')
+                    if lemma in kana_sisters:
+                        features["kana_sisters"] += 1
+                    if lemma in aux_verbs:
+                        features["auxverb"] += 1
                 
-            analysis = word_analysis.analyses[0].analysis
-            pos = analysis.get('pos', '')
-            lemma = analysis.get('lex', '')
-            
-            # Count POS tags - FIXED to handle lowercase tags
-            if pos == 'verb':
-                if lemma in kana_sisters:
-                    features["tobeverb"] += 1
-            if pos == 'pron' or pos == 'pron_dem':
-                features["pronoun"] += 1
-            elif pos == 'prep':
-                features["preposition"] += 1
-                # Also count for prep_comma
-                features["prep_comma"] += 1
-            elif pos == 'conj' or pos == 'conj_sub' or lemma in conjunctions:
-                features["conjunction"] += 1
-            elif lemma in aux_verbs:
-                features["auxverb"] += 1
-            
-            # Check for nominalization (masdar/verbal noun)
-            # Look for verbal nouns indicated by specific patterns
-            if pos == 'noun' and analysis.get('stemcat', '').startswith('Nap'):
-                # Many masdar forms are indicated by Nap in stemcat
-                features["nominalization"] += 1
-        
-        # Add commas to prep_comma count
-        features["prep_comma"] += comma_count
-        
-        return features
-        
-    except Exception as e:
-        print(f"Error calculating grammar features: {e}")
-        # Return zero counts if calculation fails
-        return {
-            "tobeverb": 0, "auxverb": 0, "conjunction": 0, "pronoun": 0,
-            "preposition": 0, "nominalization": 0, "begin_w_pronoun": 0,
-            "begin_w_interrogative": 0, "begin_w_article": 0, 
-            "begin_w_subordination": 0, "begin_w_conjunction": 0,
-            "begin_w_preposition": 0, "spelling_err": 0, "prep_comma": 0
-        }
+                # Check for nominalization (masdar/verbal noun)
+                if pos == 'noun' and word_analysis[0].analyses[0].analysis.get('stemcat', '').startswith('Nap'):
+                    features["nominalization"] += 1
+    
+    # Add commas to prep_comma count
+    features["prep_comma"] += comma_count
+    
+    return features
