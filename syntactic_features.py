@@ -482,11 +482,7 @@ def calculate_grammar_features(essay):
 
     # Initialize feature counts
     features = {
-        "kana_sisters": 0,          # كان وأخواتها - Arabic "to be" equivalents  remove
         "auxverb": 0,           # Auxiliary verbs
-        "conjunction": 0,        # Coordinating conjunctions
-        "pronoun": 0,           # All pronouns
-        "preposition": 0,       # Prepositions
         "nominalization": 0,    # Masdar forms (verbal nouns)
         "begin_w_pronoun": 0,    # Sentences starting with pronouns
         "begin_w_interrogative": 0, # Sentences starting with question words
@@ -498,7 +494,6 @@ def calculate_grammar_features(essay):
     }
     
     # Lists of Arabic POS patterns to match
-    kana_sisters = ["كان", "أصبح", "أضحى", "أمسى", "ظل", "بات", "صار", "ليس", "مازال", "مادام", "مابرح", "مافتئ", "ماانفك"]
     aux_verbs = [
         # Future tense markers
         "سوف", "س", "سـ", "سَ",
@@ -580,7 +575,6 @@ def calculate_grammar_features(essay):
                 if pos == 'pron' or pos == 'pron_dem':
                     if i == 0:  # Only count as beginning if it's the first word
                         features["begin_w_pronoun"] += 1
-                    features["pronoun"] += 1
                 elif word in interrogatives:
                     if i == 0:  # Only count as beginning if it's the first word
                         features["begin_w_interrogative"] += 1
@@ -593,16 +587,12 @@ def calculate_grammar_features(essay):
                 elif word in conjunctions or pos == 'conj' or pos == 'conj_sub':
                     if i == 0:  # Only count as beginning if it's the first word
                         features["begin_w_conjunction"] += 1
-                    features["conjunction"] += 1
                 elif pos == 'prep':
                     if i == 0:  # Only count as beginning if it's the first word
                         features["begin_w_preposition"] += 1
-                    features["preposition"] += 1
                     features["prep_comma"] += 1
                 elif pos == 'verb':
                     lemma = word_analysis[0].analyses[0].analysis.get('lex', '')
-                    if lemma in kana_sisters:
-                        features["kana_sisters"] += 1
                     if lemma in aux_verbs:
                         features["auxverb"] += 1
                 
