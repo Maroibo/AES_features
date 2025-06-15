@@ -25,11 +25,20 @@ def syllabify_arabic_word(word):
     - Syllable types: CV, CVV, CVC, CVVC, CVCC
     """
     # Define Arabic character sets
-    consonants = "ءأؤإئابتثجحخدذرزسشصضطظعغفقكلمنهوي"
+    consonants = "ةءأؤإئابتثجحخدذرزسشصضطظعغفقكلمنهويى"
     long_vowels = "اوي"  # alif, waw, yaa
     short_vowels = "َُِ"  # fatha, damma, kasra
     sukoon = "ْ"  # sukoon marks absence of vowel
     shadda = "ّ"  # gemination mark (doubles consonant)
+    
+    diacritized_word = _mle_disambiguator.disambiguate([word])[0].analyses[0].analysis['diac']
+    word = diacritized_word
+
+    # If last character is a dicaritic, remove it and replace with sukoon
+    if word and word[-1] not in consonants:
+        word = word[:-1] + sukoon
+    elif word and word[-1] != sukoon:
+        word += sukoon
     
     # Normalize word: handle shadda by duplicating the consonant
     normalized = ""
@@ -37,6 +46,7 @@ def syllabify_arabic_word(word):
     while i < len(word):
         normalized += word[i]
         if i < len(word) - 1 and word[i+1] == shadda:
+            normalized += sukoon 
             normalized += word[i]  # Duplicate the consonant
             i += 2
         else:
@@ -71,16 +81,20 @@ def syllabify_arabic_word(word):
                     # Check for CV pattern (end of syllable)
                     if i >= len(word) or word[i] in consonants:
                         if i < len(word) and word[i] in consonants:
-                            # Check for CVC pattern
-                            if i + 1 < len(word) and word[i+1] == sukoon:
+                            # Check for CVCC pattern 
+                            if i + 3 < len(word) and word[i+1] == sukoon and word[i+2] in consonants and word[i+3] == sukoon:
+                                current_syllable += word[i] + word[i+1] + word[i+2] + word[i+3]
+                                i += 4
+                            # Check for CVC pattern (when followed by two consonants with sukoon)
+                            elif i + 1 < len(word) and word[i+1] == sukoon:
                                 current_syllable += word[i] + word[i+1]
                                 i += 2
-                            # Check for CVCC pattern (when followed by two consonants with sukoon)
-                            elif i + 3 < len(word) and word[i+1] in consonants and word[i+2] == sukoon:
-                                current_syllable += word[i] + word[i+1] + word[i+2]
-                                i += 3
+                            # elif i + 4 < len(word) and word[i+1] == sukoon and word[i+2] in consonants and word[i+3] == sukoon:
+                            #     current_syllable += word[i] + word[i+1] + word[i+2] + word[i+3]
+                            #     i += 4
+                                # i += 3
                         
-                        syllables.append(current_syllable)
+                        syllables.append(current_syllable) 
                         current_syllable = ""
                     
                 # Case: long vowel
