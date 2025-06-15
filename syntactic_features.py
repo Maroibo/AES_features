@@ -156,7 +156,7 @@ def calculate_syllable_features(essay):
     # Calculate syllables per word
     syll_per_word = syllable_count / word_count if word_count > 0 else 0
     # Count words that are not in our Arabic adaptation of Dale-Chall list
-    complex_words_dc_count = 0
+    complex_words_count = 0
     
     for i, word in enumerate(words):
         word_normalized = normalize_unicode(word.strip())
@@ -164,17 +164,14 @@ def calculate_syllable_features(essay):
         syllable_count_per_word = len(word_syllables)
         # Count words that would be considered difficult per Dale-Chall criteria
         # For Arabic: Words that are not stopwords AND (have 3+ syllables OR are 6+ characters)
-        is_difficult = (
-            word_normalized not in ARABIC_STOPWORDS and
-            (syllable_count_per_word >= 3 or len(word_normalized) >= 6)
-        )
+        is_difficult = (syllable_count_per_word >= 3)
         if is_difficult:
-            complex_words_dc_count += 1
+            complex_words_count += 1
     
     return {
         "syllables": syllable_count,
         "syll_per_word": syll_per_word,
-        "complex_words_dc": complex_words_dc_count
+        "complex_words": complex_words_count
     }
 
 
@@ -655,13 +652,6 @@ def analyze_dialect_usage(text):
         prediction = dialect_id.predict(sentence)
         dialect = prediction['dialect']
         dialect_counts[dialect] += 1
-    
-    # Calculate percentages
-    dialect_percentages = {
-        dialect: (count / total_sentences) * 100 
-        for dialect, count in dialect_counts.items()
-    }
-    
     # Calculate MSA vs dialect percentages
     msa_count = dialect_counts.get('MSA', 0)
     msa_percentage = (msa_count / total_sentences) * 100
@@ -669,7 +659,6 @@ def analyze_dialect_usage(text):
     
     
     return {
-        'dialect_percentages': dialect_percentages,
         'dialect_counts': dict(dialect_counts),
         'msa_percentage': msa_percentage,
         'dialect_percentage': dialect_percentage,
