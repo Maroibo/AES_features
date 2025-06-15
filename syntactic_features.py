@@ -1,5 +1,5 @@
 from nltk.corpus import stopwords
-from camel_tools_init import get_disambiguator,get_analyzer
+from camel_tools_init import get_disambiguator,get_analyzer,get_dialect_id
 from camel_tools.utils.normalize import normalize_unicode
 from essay_proccessing import split_into_words, split_into_sentences
 import re
@@ -11,7 +11,7 @@ import pandas as pd
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 _mle_disambiguator = get_disambiguator()
 _morph_analyzer = get_analyzer()
-
+dialect_id = get_dialect_id()
 # Initialize Arabic stopwords
 ARABIC_STOPWORDS = set(stopwords.words('arabic'))
 
@@ -491,6 +491,8 @@ def calculate_grammar_features(essay):
         "begin_w_conjunction": 0, # Sentences starting with coordinating conjunctions
         "begin_w_preposition": 0, # Sentences starting with prepositions
         "prep_comma": 0,         # Prepositions and commas
+        "pronoun": 0,            # Pronouns
+        "conjunction": 0,        # Conjunctions
     }
     
     # Lists of Arabic POS patterns to match
@@ -575,6 +577,7 @@ def calculate_grammar_features(essay):
                 if pos == 'pron' or pos == 'pron_dem':
                     if i == 0:  # Only count as beginning if it's the first word
                         features["begin_w_pronoun"] += 1
+                    features["pronoun"] += 1
                 elif word in interrogatives:
                     if i == 0:  # Only count as beginning if it's the first word
                         features["begin_w_interrogative"] += 1
@@ -587,6 +590,7 @@ def calculate_grammar_features(essay):
                 elif word in conjunctions or pos == 'conj' or pos == 'conj_sub':
                     if i == 0:  # Only count as beginning if it's the first word
                         features["begin_w_conjunction"] += 1
+                    features["conjunction"] += 1
                 elif pos == 'prep':
                     if i == 0:  # Only count as beginning if it's the first word
                         features["begin_w_preposition"] += 1
@@ -604,3 +608,56 @@ def calculate_grammar_features(essay):
     features["prep_comma"] += comma_count
     
     return features
+
+def analyze_dialect_usage(text):
+    """
+    Analyze dialect usage in Arabic text using CAMeL Tools dialect identification models.
+    
+    Args:
+        text (str): The Arabic text to analyze
+        
+    Returns:
+        dict: A dictionary containing dialect usage statistics including:
+            - dialect_percentages: Dictionary of dialect percentages
+            - dialect_counts: Dictionary of dialect counts
+            - msa_percentage: Percentage of MSA text
+            - dialect_percentage: Percentage of dialectal text
+            - most_common_dialect: The most frequently used dialect
+    """
+    
+    # Normalize the text
+    normalized_text = normalize_unicode(text)
+    
+    # Split text into sentences for better analysis
+    sentences = split_into_sentences(normalized_text)
+    
+    # Initialize counters
+    dialect_counts = Counter()
+    total_sentences = len(sentences)
+    
+    # Analyze each sentence
+    for sentence in sentences:
+        # Get dialect prediction for the sentence
+        prediction = dialect_id.predict(sentence)
+        dialect = prediction['dialect']
+        dialect_counts[dialect] += 1
+    
+    # Calculate percentages
+    dialect_percentages = {
+        dialect: (count / total_sentences) * 100 
+        for dialect, count in dialect_counts.items()
+    }
+    
+    # Calculate MSA vs dialect percentages
+    msa_count = dialect_counts.get('MSA', 0)
+    msa_percentage = (msa_count / total_sentences) * 100
+    dialect_percentage = 100 - msa_percentage
+    
+    
+    return {
+        'dialect_percentages': dialect_percentages,
+        'dialect_counts': dict(dialect_counts),
+        'msa_percentage': msa_percentage,
+        'dialect_percentage': dialect_percentage,
+    }
+

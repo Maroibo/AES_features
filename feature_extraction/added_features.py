@@ -364,7 +364,6 @@ def calculate_variance_features(essay):
     
     # Calculate word length variance
     word_lengths = [len(word) for word in words]
-    word_mean = np.mean(word_lengths)
     word_var = np.var(word_lengths)
     
     # Calculate sentence length variance

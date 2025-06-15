@@ -5,6 +5,7 @@ from camel_tools.morphology.analyzer import Analyzer
 from camel_tools.sentiment import SentimentAnalyzer
 from camel_tools.tagger.default import DefaultTagger
 from transformers import AutoTokenizer, AutoModel
+from camel_tools.dialectid import DialectID
 import torch
 
 _mle_disambiguator = None
@@ -13,7 +14,7 @@ _sentiment_analyzer = None
 _bert_tokenizer = None
 _bert_model = None
 _default_tagger = None
-
+_dialect_id = None
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 def get_disambiguator():
@@ -55,3 +56,9 @@ def get_tagger():
         if _mle_disambiguator is not None:
             _default_tagger = DefaultTagger(_mle_disambiguator, 'pos')  
     return _default_tagger
+
+def get_dialect_id():
+    global _dialect_id
+    if _dialect_id is None:
+        _dialect_id = DialectID.pretrained()
+    return _dialect_id

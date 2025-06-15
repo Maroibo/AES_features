@@ -2,7 +2,6 @@ from camel_tools_init import (get_disambiguator, get_analyzer, get_sentiment_ana
                               get_bert_model, get_tagger, _mle_disambiguator, 
                               _morph_analyzer, _sentiment_analyzer, _bert_tokenizer, 
                               _bert_model, _default_tagger)
-from readability_measures import calculate_madad_osman
 from essay_proccessing import split_into_sentences, split_into_paragraphs
 
 # contansts
