@@ -91,21 +91,9 @@ def calculate_prompt_adherence_features(essay, prompt, model_name="CAMeL-Lab/ber
     """
     Calculates prompt adherence features using sentence embeddings with GPU acceleration.
     """
-
-    def get_embedding(text):
-        # Tokenize and get model output
-        inputs = _bert_tokenizer(text, return_tensors="pt", truncation=True, max_length=768)
-        # Move inputs to GPU if available
-        inputs = {k: v.to(device) for k, v in inputs.items()}
-        
-        with torch.no_grad():
-            outputs = _bert_model(**inputs)
-        # Use mean pooling to get text embedding
-        embedding = outputs.last_hidden_state.mean(dim=1).squeeze()
-        return embedding
     
     # Process texts in batches for better GPU utilization
-    def process_texts_in_batches(texts, batch_size=8):
+    def get_embedding(texts, batch_size=8):
         embeddings = []
         for i in range(0, len(texts), batch_size):
             batch = texts[i:i + batch_size]
@@ -123,12 +111,15 @@ def calculate_prompt_adherence_features(essay, prompt, model_name="CAMeL-Lab/ber
         return embeddings
     
     # Get prompt embedding
-    prompt_embedding = get_embedding(prompt)
+    prompt_embedding = get_embedding([prompt])
+    
+
     sentences = split_into_sentences(essay)
-    sentence_embeddings = process_texts_in_batches(sentences)
+    sentence_embeddings = get_embedding(sentences)
     
     # Move prompt embedding to CPU for calculations
-    prompt_embedding = prompt_embedding.cpu()
+    prompt_embedding = prompt_embedding[0].cpu()
+    print(len(prompt_embedding))
     
     # Calculate dot scores using vectorized operations
     dot_scores = torch.stack([torch.dot(emb, prompt_embedding) for emb in sentence_embeddings])
@@ -138,7 +129,7 @@ def calculate_prompt_adherence_features(essay, prompt, model_name="CAMeL-Lab/ber
         "max_sentence_dot_score": dot_scores.max().item() ,
         "mean_sentence_dot_score": dot_scores.mean().item() ,
         "min_sentence_dot_score": dot_scores.min().item(),
-        "dot_score": torch.dot(get_embedding(essay).cpu(), prompt_embedding).item()
+        "dot_score": torch.dot(get_embedding([essay])[0].cpu(), prompt_embedding).item()
     }
     
     return features
