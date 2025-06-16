@@ -4,7 +4,7 @@ from essay_proccessing import split_into_words, count_chars, split_into_sentence
 import math
 import re
 import pandas as pd
-from syntactic_features import calculate_syllable_features
+from syntactic_features import calculate_syllable_features, syllabify_arabic_word
 
 
 def calculate_readability_scores(essay):
@@ -102,8 +102,33 @@ def calculate_readability_scores(essay):
     # Calculate MADAD
     madad = 4.414 * characters_per_word + 1.498 * words_per_sentence + 3.436
     
-    # Calculate OSMAN
-    osman = 200 - (characters_per_word * 10) - (words_per_sentence * 2)
+    # Osman = 200.791 - 1.015 * (A/B) - 24.181 * (C/A + D/A + G/A + H/A)
+    # Where:
+    # A = word_count
+    # B = sentence_count
+    # C = number of hard words (words > 5 letters)
+    # D = total number of syllables
+    # G = number of complex words (words with >4 syllables)
+    # H = number of Faseeh words (complex words with specific letters or endings)
+
+    hard_words_count = sum(1 for w in words if len(normalize_unicode(w.strip())) > 5)
+    complex_words_4plus = 0
+    faseeh_count = 0
+    faseeh_letters = set(['ء', 'ىء', 'ذ', 'ظ', 'وء'])
+    faseeh_endings = ( 'وا', 'ون')
+    for w in words:
+        wn = normalize_unicode(w.strip())
+        syllables = syllabify_arabic_word(wn)
+        if len(syllables) > 4:
+            complex_words_4plus += 1
+            if any(l in wn for l in faseeh_letters) or wn.endswith(faseeh_endings):
+                faseeh_count += 1
+    osman = 200.791 - 1.015 * (word_count / sentence_count) - 24.181 * (
+        (hard_words_count / word_count) +
+        (syllable_count / word_count) +
+        (complex_words_4plus / word_count) +
+        (faseeh_count / word_count)
+    )
 
     return {
         "FleschReadingEase": flesch_score,

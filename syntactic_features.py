@@ -6,8 +6,8 @@ import re
 from collections import defaultdict
 import torch
 from collections import Counter
-import pandas as pd
-
+import subprocess
+import os
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 # Initialize Arabic stopwords
 ARABIC_STOPWORDS = set(stopwords.words('arabic'))
@@ -685,3 +685,45 @@ def calculate_nominal_verbal_sentences(essay):
 
 def calculate_jazm_features(essay):
     jazm_particles=["لم","لن","كي","حتى"]
+
+   
+def check_spelling(text):
+   # Save text to temporary file
+   spelling_mistakes=0
+   with open('temp.txt', 'w', encoding='utf-8') as f:
+       f.write(text)
+   
+   # Get absolute path to SpellChecker.jar
+   jar_path = '/data/home/marwan/ArabicSpellChecker/dist/SpellChecker.jar'
+   
+   # Run Java spell checker
+   result = subprocess.run(['java', '-jar', jar_path, '-i', 'temp.txt', '-o', 'output.txt'],
+                         capture_output=True, text=True)
+   
+   # Read results
+   with open('output.txt', 'r', encoding='utf-8') as f:
+       corrected_text = f.read()
+   
+   # Process results line by line
+   for line in corrected_text.split('\n'):
+       if '/' in line:  # This line contains a correction
+           original, correction = line.split('/')
+           print(f"Original: {original}")
+           print(f"Correction: {correction}")
+           # You can analyze the type of error here
+           if '_' in correction:
+               print("Error: Word splitting needed")
+           elif len(correction) > len(original):
+               print("Error: Missing letters")
+           elif len(correction) < len(original):
+               print("Error: Extra letters")
+           elif any(c in 'أإآ' for c in correction):
+               print("Error: Hamza correction")
+           print("---")
+           spelling_mistakes += 1
+   
+   # Clean up temporary files
+   os.remove('temp.txt')
+   os.remove('output.txt')
+   
+   return spelling_mistakes 

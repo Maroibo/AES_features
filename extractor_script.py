@@ -3,6 +3,7 @@ from camel_tools_init import (get_disambiguator, get_analyzer, get_sentiment_ana
                               _morph_analyzer, _sentiment_analyzer, _bert_tokenizer, 
                               _bert_model, _default_tagger)
 from essay_proccessing import split_into_sentences, split_into_paragraphs
+from syntactic_features import check_spelling
 import pandas as pd
 # contansts
 INPUT_FILE_PATH='../../../../shared/Arabic_Dataset/cleaned_cqc.csv'
@@ -21,13 +22,21 @@ def main():
     _bert_tokenizer, _bert_model = get_bert_model()
     _default_tagger = get_tagger()
     df=pd.read_csv(INPUT_FILE_PATH)
+    df=df[df.essay_set.isin([1,2,3,4])];
     paragraphs_df=pd.read_csv(INPUT_PARAGRAPHS_FILE_PATH)
     # Read the input file
+    counter=10
     for index, row in df.iterrows():
         essay=row['essay']
         id=row['essay_id']
         intro_paragraph=paragraphs_df[paragraphs_df['essay_id']==id]['introduction'].values[0]
         body_paragraph=paragraphs_df[paragraphs_df['essay_id']==id]['body'].values[0]
         conclusion_paragraph=paragraphs_df[paragraphs_df['essay_id']==id]['conclusion'].values[0]
+        print(check_spelling(essay))
+        counter-=1
+        if counter==0:
+            break
+
+main()
 
     
