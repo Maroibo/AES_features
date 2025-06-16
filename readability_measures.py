@@ -94,14 +94,6 @@ def calculate_readability_scores(essay):
     # Original: 0.4 * ((words/sentences) + 100 * (complex_words/words))
     gunning_fog_score = 0.4 * (words_per_sentence + percent_complex_words)
     
-    # Dale-Chall calculation
-    raw_dale_chall = 0.1579 * (percent_difficult_words / 100) + 0.0496 * words_per_sentence
-    dale_chall_score = raw_dale_chall + 3.6365 if percent_difficult_words > 5 else raw_dale_chall
-
-
-    # Calculate MADAD
-    madad = 4.414 * characters_per_word + 1.498 * words_per_sentence + 3.436
-    
     # Osman = 200.791 - 1.015 * (A/B) - 24.181 * (C/A + D/A + G/A + H/A)
     # Where:
     # A = word_count
@@ -130,6 +122,20 @@ def calculate_readability_scores(essay):
         (faseeh_count / word_count)
     )
 
+    # Calculate AARIBase
+    # NOC = number of characters
+    # ACW = average characters per word
+    # AWS = average words per sentence
+    NOC = char_count
+    ACW = char_count / word_count if word_count > 0 else 0
+    AWS = word_count / sentence_count if sentence_count > 0 else 0
+    aari_base = (3.28 * NOC) + (1.43 * ACW) + (1.24 * AWS)
+
+    # Calculate Heeti
+    # AWL = average word length (number of characters / number of words)
+    AWL = char_count / word_count if word_count > 0 else 0
+    heeti = (AWL * 4.414) - 13.468
+
     return {
         "FleschReadingEase": flesch_score,
         "SMOGIndex": smog_score,
@@ -140,9 +146,9 @@ def calculate_readability_scores(essay):
         "LIX": lix_score,
         "RIX": rix_score,
         "GunningFogIndex": gunning_fog_score,
-        "DaleChallIndex": dale_chall_score,
-        "MADAD": madad,
-        "OSMAN": osman
+        "OSMAN": osman,
+        "AARIBase": aari_base,
+        "Heeti": heeti
     }
 
 
