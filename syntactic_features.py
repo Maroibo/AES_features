@@ -683,47 +683,60 @@ def calculate_nominal_verbal_sentences(essay):
         'verbal_sentences': verbal_sentences
     }
 
-def calculate_jazm_features(essay):
-    jazm_particles=["لم","لن","كي","حتى"]
-
-   
-def check_spelling(text):
-   # Save text to temporary file
-   spelling_mistakes=0
-   with open('temp.txt', 'w', encoding='utf-8') as f:
-       f.write(text)
-   
-   # Get absolute path to SpellChecker.jar
-   jar_path = '/data/home/marwan/ArabicSpellChecker/dist/SpellChecker.jar'
-   
-   # Run Java spell checker
-   result = subprocess.run(['java', '-jar', jar_path, '-i', 'temp.txt', '-o', 'output.txt'],
-                         capture_output=True, text=True)
-   
-   # Read results
-   with open('output.txt', 'r', encoding='utf-8') as f:
-       corrected_text = f.read()
-   
-   # Process results line by line
-   for line in corrected_text.split('\n'):
-       if '/' in line:  # This line contains a correction
-           original, correction = line.split('/')
-           print(f"Original: {original}")
-           print(f"Correction: {correction}")
-           # You can analyze the type of error here
-           if '_' in correction:
-               print("Error: Word splitting needed")
-           elif len(correction) > len(original):
-               print("Error: Missing letters")
-           elif len(correction) < len(original):
-               print("Error: Extra letters")
-           elif any(c in 'أإآ' for c in correction):
-               print("Error: Hamza correction")
-           print("---")
-           spelling_mistakes += 1
-   
-   # Clean up temporary files
-   os.remove('temp.txt')
-   os.remove('output.txt')
-   
-   return spelling_mistakes 
+def count_jazm_particles(essay, _morph_analyzer):
+    """
+    Count jazm particles and track when they're followed by plural verbs ending with ن.
+    Uses both morphological tags and particle list for validation.
+    """
+    jazm_stats = {
+        "total_jazm": 0,
+        "jazm_with_plural_verb": 0,
+    }
+    
+    # Correct list of jazm particles
+    jazm_particles = {
+        "لم", "لما", "لام الأمر", "لا الناهية", "إن", "من", "ما", "مهما", "متى",
+        "كيفما", "أنى", "أيان", "أي", "أينما", "حيثما", "إذما", "إذا"
+    }
+    
+    words = split_into_words(essay)
+    
+    for i, word in enumerate(words):
+        analyses = _morph_analyzer.analyze(word)
+        if analyses:
+            analysis = analyses[0]
+            is_jazm = False
+            
+            # Check for لام التعليل using prc1 tag
+            if 'prc1' in analysis and analysis['prc1'] == 'li_prep':
+                is_jazm = True
+            
+            # Check for negative particles using pos tag and bw field
+            elif analysis.get('pos') == 'part_neg':
+                bw = analysis.get('bw', '')
+                if '/NEG_PART' in bw:  # This will catch both لم and لن
+                    is_jazm = True
+            
+            # Check for conditional and relative particles
+            elif analysis.get('pos') in ['part', 'conj']:
+                bw = analysis.get('bw', '')
+                # Check if the word contains any of the particles in the bw field
+                if any(particle in bw for particle in jazm_particles):
+                    is_jazm = True
+            
+            if is_jazm:
+                print(f"Found jazm particle: {word}")
+                jazm_stats["total_jazm"] += 1
+                
+                # Check if followed by a plural verb ending with ن
+                if i + 1 < len(words):
+                    next_word = words[i + 1]
+                    next_analysis = _morph_analyzer.analyze(next_word)
+                    
+                    if next_analysis and next_analysis[0].get('pos') == 'verb':
+                        # Check for plural verb with ن ending
+                        if (next_analysis[0].get('num') == 'p' and 
+                            next_word.endswith('ن')):
+                            jazm_stats["jazm_with_plural_verb"] += 1
+    
+    return jazm_stats

@@ -3,7 +3,7 @@ from camel_tools_init import (get_disambiguator, get_analyzer, get_sentiment_ana
                               _morph_analyzer, _sentiment_analyzer, _bert_tokenizer, 
                               _bert_model, _default_tagger)
 from essay_proccessing import split_into_sentences, split_into_paragraphs
-from syntactic_features import check_spelling
+from syntactic_features import count_jazm_particles
 import pandas as pd
 # contansts
 INPUT_FILE_PATH='../../../../shared/Arabic_Dataset/cleaned_cqc.csv'
@@ -32,11 +32,8 @@ def main():
         intro_paragraph=paragraphs_df[paragraphs_df['essay_id']==id]['introduction'].values[0]
         body_paragraph=paragraphs_df[paragraphs_df['essay_id']==id]['body'].values[0]
         conclusion_paragraph=paragraphs_df[paragraphs_df['essay_id']==id]['conclusion'].values[0]
-        print(check_spelling(essay))
-        counter-=1
-        if counter==0:
-            break
-
+        # Example usage:
+        break
 main()
 
     
