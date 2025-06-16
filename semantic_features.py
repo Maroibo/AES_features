@@ -132,5 +132,80 @@ def calculate_prompt_adherence_features(essay, prompt, model_name="CAMeL-Lab/ber
     
     return features
 
+def calculate_sim(text1, text2, model_name="CAMeL-Lab/bert-base-arabic-camelbert-mix"):
+    """
+    Calculates semantic similarity between two texts (paragraphs or sentences) using embeddings.
+    
+    Args:
+        text1 (str): First text to compare
+        text2 (str): Second text to compare
+        model_name (str): Name of the BERT model to use
+        
+    Returns:
+        float: Maximum similarity score between the texts
+    """
+    def get_embedding(text):
+        # Tokenize and get embedding for a single text
+        inputs = _bert_tokenizer(text, return_tensors="pt", truncation=True, 
+                               max_length=512, padding=True)
+        inputs = {k: v.to(device) for k, v in inputs.items()}
+        
+        with torch.no_grad():
+            outputs = _bert_model(**inputs)
+        return outputs.last_hidden_state.mean(dim=1)[0].cpu()
+    
+    # Get embeddings for both texts
+    embedding1 = get_embedding(text1)
+    embedding2 = get_embedding(text2)
+    
+    # Calculate cosine similarity
+    similarity = torch.dot(embedding1, embedding2) / (torch.norm(embedding1) * torch.norm(embedding2))
+    
+    return similarity.item()
+
+
+def calculate_semantic_similarities(intro, body, conclusion):
+    """
+    Calculates semantic similarities between essay parts (intro, body, conclusion) at both paragraph and sentence levels.
+    
+    Args:
+        intro (str): Introduction paragraph
+        body (str): Body paragraph
+        conclusion (str): Conclusion paragraph
+        
+    Returns:
+        dict: Dictionary containing:
+            - paragraph_sim: Maximum similarity between any two paragraphs (intro, body, conclusion)
+            - sent_sim: Maximum similarity between any two sentences across all paragraphs
+    """
+    # Get all sentences from each part
+    intro_sentences = split_into_sentences(intro)
+    body_sentences = split_into_sentences(body)
+    conclusion_sentences = split_into_sentences(conclusion)
+    
+    # Calculate paragraph similarity
+    paragraphs = [intro, body, conclusion]
+    paragraph_sim = 0.0
+    for i in range(len(paragraphs)):
+        for j in range(i + 1, len(paragraphs)):
+            similarity = calculate_sim(paragraphs[i], paragraphs[j])
+            paragraph_sim = max(paragraph_sim, similarity)
+    
+    # Calculate sentence similarity across all sentences
+    all_sentences = intro_sentences + body_sentences + conclusion_sentences
+    sent_sim = 0.0
+    if len(all_sentences) > 1:
+        for i in range(len(all_sentences)):
+            for j in range(i + 1, len(all_sentences)):
+                similarity = calculate_sim(all_sentences[i], all_sentences[j])
+                sent_sim = max(sent_sim, similarity)
+    
+    return {
+        "paragraph_sim": paragraph_sim,
+        "sent_sim": sent_sim
+    }
+
+
+
 
 

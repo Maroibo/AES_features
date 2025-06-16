@@ -740,3 +740,151 @@ def count_jazm_particles(essay, _morph_analyzer):
                             jazm_stats["jazm_with_plural_verb"] += 1
     
     return jazm_stats
+
+def count_conjunctions_and_transitions(essay):
+    """
+    Count occurrences of Arabic conjunctions and transitional phrases in the text.
+    
+    Args:
+        essay (str): The Arabic text to analyze
+        
+    Returns:
+        dict: A dictionary containing:
+            - Counts of each conjunction and transition phrase
+            - Ratio of connectives to total words
+            - Ratio of unique connectives to paragraph words
+            - Maximum and minimum distances between connectives
+    """
+    # Dictionary of conjunctions and transitions with their variations
+    conjunctions_dict = {
+        # Contrast and Opposition
+        'الا ان': ['الا ان', 'الا أن'],
+        'بيد ان': ['بيد ان', 'بيد أن'],
+        'غير ان': ['غير ان', 'غير أن'],
+        'على الرغم': ['على الرغم'],
+        'رغمان': ['رغمان'],
+        'بالرغم من': ['بالرغم من'],
+        'برغم': ['برغم'],
+        'بالمقابل': ['بالمقابل'],
+        'في المقابل': ['في المقابل'],
+        'بيد': ['بيد'],
+        
+        # Time and Sequence
+        'بعدما': ['بعدما'],
+        'اذ': ['اذ', 'إذ'],
+        'بينما': ['بينما'],
+        'عقب': ['عقب'],
+        'قبيل': ['قبيل'],
+        'وقبل': ['وقبل'],
+        'من ثم': ['من ثم'],
+        'قبل ان': ['قبل ان', 'قبل أن'],
+        
+        # Cause and Effect
+        'جراء': ['جراء'],
+        'نظرا ل': ['نظرا ل'],
+        'بفضل': ['بفضل'],
+        'لأن': ['لأن'],
+        'بحيث': ['بحيث'],
+        
+        # Condition and Exception
+        'الا اذا': ['الا اذا', 'الا إذا'],
+        'حتى لو': ['حتى لو'],
+        'لولا': ['لولا'],
+        'طالما': ['طالما'],
+        'كلما': ['كلما'],
+        
+        # Purpose and Comparison
+        'بغية': ['بغية'],
+        'كأن': ['كأن'],
+        'خلافا ل': ['خلافا ل'],
+        'بمعنى اخر': ['بمعنى اخر', 'بمعنى آخر'],
+        
+        # Context and Situation
+        'في ظل': ['في ظل'],
+        'حال': ['حال']
+    }
+    
+    # Initialize results dictionary with all conjunctions set to 0
+    results = {key: 0 for key in conjunctions_dict.keys()}
+    
+    # Normalize the text
+    normalized_text = normalize_unicode(essay)
+    
+    # Get all words in the text
+    all_words = split_into_words(normalized_text)
+    total_words = len(all_words)
+    
+    # Track positions of connectives for distance calculations
+    connective_positions = []
+    unique_connectives = set()
+    
+    # Count occurrences of each conjunction and its variations
+    for conjunction, variations in conjunctions_dict.items():
+        for variation in variations:
+            # Count exact matches
+            count = normalized_text.count(variation)
+            results[conjunction] += count
+            
+            # Count with spaces around the conjunction
+            spaced_variation = f" {variation} "
+            count = normalized_text.count(spaced_variation)
+            results[conjunction] += count
+            
+            # Count at the beginning of sentences
+            sentence_start = f"{variation} "
+            count = normalized_text.count(sentence_start)
+            results[conjunction] += count
+            
+            # Count at the end of sentences
+            sentence_end = f" {variation}"
+            count = normalized_text.count(sentence_end)
+            results[conjunction] += count
+            
+            # Track positions and unique connectives
+            if count > 0:
+                unique_connectives.add(conjunction)
+                # Find all positions of this variation
+                start = 0
+                while True:
+                    pos = normalized_text.find(variation, start)
+                    if pos == -1:
+                        break
+                    # Convert character position to word position
+                    word_pos = len(split_into_words(normalized_text[:pos]))
+                    connective_positions.append(word_pos)
+                    start = pos + 1
+    
+    # Calculate distances between connectives
+    connective_positions.sort()
+    distances = []
+    if len(connective_positions) > 1:
+        for i in range(len(connective_positions) - 1):
+            distance = connective_positions[i + 1] - connective_positions[i]
+            distances.append(distance)
+    
+    # Calculate ratios and add to results
+    if total_words > 0:
+        results['connective_ratio'] = sum(results.values()) / total_words
+        results['unique_connective_ratio'] = len(unique_connectives) / total_words
+    else:
+        results['connective_ratio'] = 0
+        results['unique_connective_ratio'] = 0
+    
+    # Add distance metrics
+    if distances:
+        results["average_connective_distance"] = sum(distances) / len(distances)
+    else:
+        results["average_connective_distance"] = 0
+    # Calculate total count
+    total_count = sum(results.values())
+    
+    # Add total to results
+    results['total_conjunctions'] = total_count
+    
+    # Ensure all 34 conjunctions are in the results with at least 0
+    for conjunction in conjunctions_dict.keys():
+        if conjunction not in results:
+            results[conjunction] = 0
+    
+    return results
+

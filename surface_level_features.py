@@ -2,6 +2,7 @@ from essay_proccessing import split_into_words, split_into_sentences
 from camel_tools_init import _morph_analyzer
 import numpy as np
 from nltk.corpus import stopwords
+from camel_tools.utils.normalize import normalize_unicode
 
 ARABIC_STOPWORDS = set(stopwords.words('arabic'))
 
@@ -55,17 +56,6 @@ def long_words_count(essay):
     return long_words_count
 
 
-def calculate_comma_period_count(essay):
-    """
-    Counts the number of commas and periods in the essay.
-    """
-    comma_count = essay.count('،')
-    period_count = essay.count('.')
-    return {
-        "comma_count": comma_count,
-        "period_count": period_count
-    }
-
 def calculate_variance_features(essay):
     """
     Calculates variance-related features for Arabic text including:
@@ -103,6 +93,395 @@ def calculate_variance_features(essay):
         "stop_prop": stop_prop,
         "type_token_ratio": type_token_ratio
     }
+
+def calculate_punctuation_counts(essay,_mle_disambiguator):
+    """
+    Counts various punctuation marks in an Arabic essay:
+    - Exclamation mark count (!)
+    - Semicolon count (;)
+    - Double quotes count ("")
+    - Dash count (-)
+    - Colon count (:)
+    - Question mark count (?)
+    - Period count (.)
+    - Comma count (,)
+    - Apostrophe count (')
+    - Quotation mark count (")
+    - Parenthesis count (()
+    - Total punctuation count from morphological analysis
+    
+    Args:
+        essay (str): The Arabic essay text
+        _morph_analyzer: The CAMeL Tools morphological analyzer
+        
+    Returns:
+        dict: Dictionary containing counts of each punctuation mark
+    """
+    #how many times the punc tag appears in the essay
+    punc_count = 0
+    normalized_essay=normalize_unicode(essay)
+    disambiguated = _mle_disambiguator.disambiguate(normalized_essay)   
+    if disambiguated:
+        for disambiguated_word in disambiguated:
+            if disambiguated_word and len(disambiguated_word) > 0 and disambiguated_word.analyses:
+                analysis = disambiguated_word.analyses[0].analysis
+                if 'pos' in analysis:
+                    if analysis['pos'] == 'punc':
+                        punc_count += 1
+
+    return {
+        "exclamation_count": essay.count('!'),
+        "semicolon_count": essay.count(';'),
+        "dash_count": essay.count('-'),
+        "colon_count": essay.count(':'),
+        "question_count": essay.count('?'),
+        "period_count": essay.count('.'),
+        "comma_count": essay.count(','),
+        "quotation_mark_count": essay.count('"'),
+        "parenthesis_count": essay.count('('),
+        "punc_count": punc_count
+    }
+
+def calculate_dup_punctuation_count(essay,_mle_disambiguator):
+    """"
+    check the number of times there is a two consecutive punctuation marks
+    """
+    normalized_essay=normalize_unicode(essay)
+    disambiguated = _mle_disambiguator.disambiguate(normalized_essay)   
+    dup_punc_count = 0
+    prev_was_punc = False
+    
+    if disambiguated:
+        for disambiguated_word in disambiguated:
+            if disambiguated_word and len(disambiguated_word) > 0 and disambiguated_word.analyses:
+                analysis = disambiguated_word.analyses[0].analysis
+                if 'pos' in analysis:
+                    is_punc = analysis['pos'] == 'punc'
+                    if is_punc and prev_was_punc:
+                        dup_punc_count += 1
+                    prev_was_punc = is_punc
+                else:
+                    prev_was_punc = False
+            else:
+                prev_was_punc = False
+    
+    return dup_punc_count
+
+def calculate_religious_phrases(intro_paragraph,body_paragraph,conclusion_paragraph):
+    """
+    Checks for religious phrases in specific paragraphs of the essay:
+    - basmallah_use: First or second paragraph contains بسم الله الرحمن الرحيم
+    - hamd_use: First or second paragraph contains الحمد لله رب العالمين
+    - amma_baad_use: First or second paragraph contains أما بعد
+    - salla_allah_use: First or second paragraph contains صلى الله وبارك
+    - sallam_use: Last paragraph contains والسلام عليكم ورحمة الله وبركاته
+    - salla_alla_mohammed_use: Last paragraph contains وصلى الله وسلم على نبينا محمد
+    
+    Args:
+        essay (str): The Arabic essay text
+        
+    Returns:
+        dict: Dictionary containing boolean values for each religious phrase check
+    """
+    # Split essay into paragraphs
+    paragraphs = [intro_paragraph,body_paragraph,conclusion_paragraph]
+    
+    # Initialize result dictionary
+    result = {
+        "basmallah_use": False,
+        "hamd_use": False,
+        "amma_baad_use": False,
+        "salla_allah_use": False,
+        "sallam_use": False,
+        "salla_alla_mohammed_use": False
+    }
+    
+    # Check first and second paragraphs for opening phrases
+    for i in range(min(2, len(paragraphs))):
+        paragraph = paragraphs[i]
+        if "بسم الله الرحمن الرحيم" in paragraph:
+            result["basmallah_use"] = True
+        if "الحمد لله رب العالمين" in paragraph:
+            result["hamd_use"] = True
+        if "أما بعد" in paragraph:
+            result["amma_baad_use"] = True
+        if "صلى الله وبارك" in paragraph:
+            result["salla_allah_use"] = True
+    
+    # Check last paragraph for closing phrases
+    if paragraphs:
+        last_paragraph = paragraphs[-1]
+        if "والسلام عليكم ورحمة الله وبركاته" in last_paragraph:
+            result["sallam_use"] = True
+        if "وصلى الله وسلم على نبينا محمد" in last_paragraph:
+            result["salla_alla_mohammed_use"] = True
+    
+    return result
+
+def calculate_advanced_punctuation_features(essay, _mle_disambiguator):
+    """
+    Analyzes advanced punctuation usage in Arabic text according to specific rules.
+    
+    Args:
+        essay (str): The Arabic essay text
+        _mle_disambiguator: The CAMeL Tools morphological analyzer
+        
+    Returns:
+        dict: Dictionary containing counts of correct, missing, and incorrect uses of various punctuation marks
+    """
+    # Initialize counters
+    features = {
+        # Question mark features
+        "question_mark_correct": 0,  # Correct question mark usage
+        "question_mark_missing": 0,  # Missing question mark
+        "question_mark_incorrect": 0,  # Incorrect question mark usage
+        
+        # Exclamation mark features
+        "exclamation_mark_correct": 0,  # Correct exclamation mark usage
+        "exclamation_mark_missing": 0,  # Missing exclamation mark
+        "exclamation_mark_incorrect": 0,  # Incorrect exclamation mark usage
+        
+        # Semicolon features
+        "semicolon_correct": 0,  # Correct semicolon usage
+        "semicolon_missing": 0,  # Missing semicolon
+        "semicolon_incorrect": 0,  # Incorrect semicolon usage
+        
+        # Comma features
+        "comma_incorrect": 0,  # Incorrect comma usage with discourse connectives
+        "comma_missing": 0,  # Missing comma with discourse connectives
+        
+        # Period features
+        "period_correct": 0,  # Correct period usage
+        "period_incorrect": 0,  # Incorrect period usage
+        
+        # Colon features
+        "colon_correct": 0,  # Correct colon usage
+        "colon_missing": 0,  # Missing colon
+        "colon_incorrect": 0,  # Incorrect colon usage
+        
+        # Quotation mark features
+        "quotation_mark_correct": 0,  # Correct quotation mark usage
+        "quotation_mark_missing": 0,  # Missing quotation mark
+        "quotation_mark_incorrect": 0,  # Incorrect quotation mark usage
+    }
+    
+    # Question tools
+    question_tools = ['هل', 'كيف', 'ماذا', 'لماذا', 'لم', 'كم', 'متى', 'أين']
+    
+    # Exaggerating styles
+    exaggerating_styles = ['ياليت', 'بئس', 'رائع', 'لله در']
+    
+    # Causative indicators
+    causative_indicators = ['لأن', 'بسبب', 'لكي']
+    causative_prefixes = ['ل', 'ف']
+    
+    # Colon indicators
+    colon_indicators = ['مثال', 'التالية', 'الآتية', 'مايلي']
+    
+    # Split into sentences and paragraphs
+    sentences = split_into_sentences(essay)
+    paragraphs = essay.split('\n\n')
+    
+    # Process each sentence
+    for sentence in sentences:
+        words = split_into_words(sentence)
+        
+        # Question mark analysis
+        has_question_tool = any(tool in sentence for tool in question_tools)
+        has_question_mark = '?' in sentence
+        
+        if has_question_tool and has_question_mark:
+            features["question_mark_correct"] += 1
+        elif has_question_tool and not has_question_mark:
+            features["question_mark_missing"] += 1
+        elif not has_question_tool and has_question_mark:
+            features["question_mark_incorrect"] += 1
+            
+        # Exclamation mark analysis
+        has_exaggerating_style = any(style in sentence for style in exaggerating_styles)
+        has_exclamation_mark = '!' in sentence
+        
+        if has_exaggerating_style and has_exclamation_mark:
+            features["exclamation_mark_correct"] += 1
+        elif has_exaggerating_style and not has_exclamation_mark:
+            features["exclamation_mark_missing"] += 1
+        elif not has_exaggerating_style and has_exclamation_mark:
+            features["exclamation_mark_incorrect"] += 1
+            
+        # Semicolon analysis
+        if ';' in sentence:
+            next_word = None
+            for i, word in enumerate(words):
+                if word == ';' and i + 1 < len(words):
+                    next_word = words[i + 1]
+                    break
+                    
+            if next_word:
+                has_causative = (next_word in causative_indicators or 
+                               any(next_word.startswith(prefix) for prefix in causative_prefixes))
+                if has_causative:
+                    features["semicolon_correct"] += 1
+                else:
+                    features["semicolon_incorrect"] += 1
+        else:
+            # Check for missing semicolon
+            for i, word in enumerate(words):
+                if word in causative_indicators or any(word.startswith(prefix) for prefix in causative_prefixes):
+                    if i > 0 and words[i-1] != ';':
+                        features["semicolon_missing"] += 1
+                        
+        # Colon analysis
+        has_colon_indicator = any(indicator in sentence for indicator in colon_indicators)
+        has_colon = ':' in sentence
+        
+        if has_colon_indicator and has_colon:
+            features["colon_correct"] += 1
+        elif has_colon_indicator and not has_colon:
+            features["colon_missing"] += 1
+        elif not has_colon_indicator and has_colon:
+            features["colon_incorrect"] += 1
+            
+    # Process paragraphs for period and comma analysis
+    for paragraph in paragraphs:
+        # Period analysis
+        if paragraph.strip().endswith('.'):
+            features["period_correct"] += 1
+        elif '.' in paragraph[:-1]:  # Period before end
+            features["period_incorrect"] += 1
+            
+        # Comma analysis with discourse connectives
+        # Note: This is a simplified version. You may want to add more discourse connectives
+        discourse_connectives = {
+        # Contrast and Opposition
+        'الا ان': ['الا ان', 'الا أن'],
+        'بيد ان': ['بيد ان', 'بيد أن'],
+        'غير ان': ['غير ان', 'غير أن'],
+        'على الرغم': ['على الرغم'],
+        'رغمان': ['رغمان'],
+        'بالرغم من': ['بالرغم من'],
+        'برغم': ['برغم'],
+        'بالمقابل': ['بالمقابل'],
+        'في المقابل': ['في المقابل'],
+        'بيد': ['بيد'],
+        
+        # Time and Sequence
+        'بعدما': ['بعدما'],
+        'اذ': ['اذ', 'إذ'],
+        'بينما': ['بينما'],
+        'عقب': ['عقب'],
+        'قبيل': ['قبيل'],
+        'وقبل': ['وقبل'],
+        'من ثم': ['من ثم'],
+        'قبل ان': ['قبل ان', 'قبل أن'],
+        
+        # Cause and Effect
+        'جراء': ['جراء'],
+        'نظرا ل': ['نظرا ل'],
+        'بفضل': ['بفضل'],
+        'لأن': ['لأن'],
+        'بحيث': ['بحيث'],
+        
+        # Condition and Exception
+        'الا اذا': ['الا اذا', 'الا إذا'],
+        'حتى لو': ['حتى لو'],
+        'لولا': ['لولا'],
+        'طالما': ['طالما'],
+        'كلما': ['كلما'],
+        
+        # Purpose and Comparison
+        'بغية': ['بغية'],
+        'كأن': ['كأن'],
+        'خلافا ل': ['خلافا ل'],
+        'بمعنى اخر': ['بمعنى اخر', 'بمعنى آخر'],
+        
+        # Context and Situation
+        'في ظل': ['في ظل'],
+        'حال': ['حال']
+    }
+        
+        for connective in discourse_connectives:
+            if connective in paragraph:
+                if ',' not in paragraph:
+                    features["comma_incorrect"] += 1
+                elif ',' in paragraph and not any(word in causative_indicators for word in split_into_words(paragraph)):
+                    features["comma_missing"] += 1
+                    
+    # Quotation mark analysis
+    # Comprehensive list of attribution cues categorized by type
+    attribution_cues = {
+        "assertion": [  # Declarative/assertive reporting
+            "قال",      # said
+            "ذكر",      # mentioned
+            "صرح",      # declared
+            "أعلن",     # announced
+            "أفاد",     # stated
+            "أكد",      # confirmed
+            "جزم"       # asserted
+        ],
+        "directive": [  # Requesting/questioning
+            "سأل",      # asked
+            "طلب",      # requested
+            "أمر",      # ordered
+            "استفهم"    # questioned/inquired
+        ],
+        "expression": [  # Emotions, social acts
+            "اعتذر",    # apologized
+            "شكر",      # thanked
+            "هنأ"       # congratulated
+        ],
+        "commissive": [  # Commitments/promises
+            "وعد",      # promised
+            "أقسم",     # swore
+            "راهن"      # bet
+        ],
+        "declarative": [  # State-changing speech acts
+            "أبلغ",     # informed
+            "اعترف"     # admitted
+        ],
+        "adverbs_adjectives": [  # Used as modifiers in implicit attributions
+            "مضيفاً",   # adding
+            "معلقاً",   # commenting
+            "مؤكداً",   # emphasizing
+            "واصفاً"    # describing
+        ],
+        "prepositional_phrases": [  # Used with indirect attributions
+            "بحسب",     # according to
+            "وفقاً لـ",  # according to
+            "على حد قوله"  # as he said / according to his words
+        ]
+    }
+    
+    # Flatten the attribution cues dictionary into a single list for easier checking
+    all_attribution_cues = []
+    for category in attribution_cues.values():
+        all_attribution_cues.extend(category)
+    
+    for sentence in sentences:
+        # Check for explicit attribution cues
+        has_attribution = any(cue in sentence for cue in all_attribution_cues)
+        
+        # Check for implicit patterns (name followed by colon)
+        words = split_into_words(sentence)
+        for i, word in enumerate(words):
+            if i + 1 < len(words) and words[i + 1] == ':':
+                has_attribution = True
+                break
+        
+        has_quotes = '"' in sentence
+        
+        if has_attribution and has_quotes:
+            features["quotation_mark_correct"] += 1
+        elif has_attribution and not has_quotes:
+            features["quotation_mark_missing"] += 1
+        elif not has_attribution and has_quotes:
+            features["quotation_mark_incorrect"] += 1
+            
+    return features
+
+
+
+
+
 
 
 
