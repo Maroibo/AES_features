@@ -1,12 +1,10 @@
 from nltk.corpus import stopwords
-from camel_tools_init import get_sentiment_analyzer,get_bert_model
+from camel_tools_init import _sentiment_analyzer, _bert_tokenizer, _bert_model
 from essay_proccessing import split_into_sentences
 import torch
 
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-_sentiment_analyzer = get_sentiment_analyzer()
-_bert_tokenizer, _bert_model = get_bert_model()
 # Initialize Arabic stopwords
 ARABIC_STOPWORDS = set(stopwords.words('arabic'))
 

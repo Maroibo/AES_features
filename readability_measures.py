@@ -25,7 +25,7 @@ def calculate_readability_scores(essay):
     """
     syllable_features = calculate_syllable_features(essay)
     syllable_count = syllable_features['syllables']
-    complex_words_count = syllable_features['complex_words_dc']
+    complex_words_count = syllable_features['complex_words']
     # Count sentences
     sentences = list(filter(str.strip, re.split(r'[.،!؛:؟]', essay)))
     sentence_count = len(sentences)

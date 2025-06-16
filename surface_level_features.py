@@ -1,12 +1,11 @@
 from essay_proccessing import split_into_words, split_into_sentences
-from camel_tools_init import get_analyzer
+from camel_tools_init import _morph_analyzer
 import numpy as np
 from nltk.corpus import stopwords
 
 ARABIC_STOPWORDS = set(stopwords.words('arabic'))
 
 
-_morph_analyzer = get_analyzer()
 
 def calculate_lemma_features(essay):
     """

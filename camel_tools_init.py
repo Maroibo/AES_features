@@ -5,7 +5,7 @@ from camel_tools.morphology.analyzer import Analyzer
 from camel_tools.sentiment import SentimentAnalyzer
 from camel_tools.tagger.default import DefaultTagger
 from transformers import AutoTokenizer, AutoModel
-from camel_tools.dialectid import DialectID
+from camel_tools.dialectid import DialectIdentifier
 import torch
 
 _mle_disambiguator = None
@@ -60,5 +60,5 @@ def get_tagger():
 def get_dialect_id():
     global _dialect_id
     if _dialect_id is None:
-        _dialect_id = DialectID.pretrained()
+        _dialect_id = DialectIdentifier.pretrained()
     return _dialect_id

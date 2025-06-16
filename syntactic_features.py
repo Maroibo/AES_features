@@ -1,5 +1,5 @@
 from nltk.corpus import stopwords
-from camel_tools_init import get_disambiguator,get_analyzer,get_dialect_id
+from camel_tools_init import _mle_disambiguator, _morph_analyzer, _dialect_id
 from camel_tools.utils.normalize import normalize_unicode
 from essay_proccessing import split_into_words, split_into_sentences
 import re
@@ -9,9 +9,6 @@ from collections import Counter
 import pandas as pd
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-_mle_disambiguator = get_disambiguator()
-_morph_analyzer = get_analyzer()
-dialect_id = get_dialect_id()
 # Initialize Arabic stopwords
 ARABIC_STOPWORDS = set(stopwords.words('arabic'))
 
@@ -649,7 +646,7 @@ def analyze_dialect_usage(text):
     # Analyze each sentence
     for sentence in sentences:
         # Get dialect prediction for the sentence
-        prediction = dialect_id.predict(sentence)
+        prediction = _dialect_id.predict(sentence)
         dialect = prediction['dialect']
         dialect_counts[dialect] += 1
     # Calculate MSA vs dialect percentages
@@ -664,3 +661,27 @@ def analyze_dialect_usage(text):
         'dialect_percentage': dialect_percentage,
     }
 
+def calculate_nominal_verbal_sentences(essay):
+    sentences=split_into_sentences(essay)
+    nominal_sentences=0
+    verbal_sentences=0
+    for sentence in sentences:
+        words=split_into_words(sentence)
+        # check the first three words if it contains a verb then the sentence is verbal if not then the sentence is nominal
+        words_to_check=words[:3]
+        for word in words_to_check:
+            word_analysis = _mle_disambiguator.disambiguate([word])
+            if word_analysis and word_analysis[0].analyses:
+                pos = word_analysis[0].analyses[0].analysis['pos']
+                if pos == 'verb':
+                    verbal_sentences+=1
+                    break
+        else:
+            nominal_sentences+=1
+    return {
+        'nominal_sentences': nominal_sentences,
+        'verbal_sentences': verbal_sentences
+    }
+
+def calculate_jazm_features(essay):
+    jazm_particles=["لم","لن","كي","حتى"]
