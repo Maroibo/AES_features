@@ -609,16 +609,16 @@ def calculate_grammar_features(essay):
                     if i == 0:  # Only count as beginning if it's the first word
                         features["begin_w_pronoun"] += 1
                     features["pronoun"] += 1
-                elif word in interrogatives:
+                elif word in interrogatives or 'interrog' in pos:
                     if i == 0:  # Only count as beginning if it's the first word
                         features["begin_w_interrogative"] += 1
                 elif 'prc0' in word_analysis[0].analyses[0].analysis and word_analysis[0].analyses[0].analysis['prc0'] == 'Al_det':
                     if i == 0:  # Only count as beginning if it's the first word
                         features["begin_w_article"] += 1
-                elif word in subordinating_conj:
+                elif word in subordinating_conj or pos == 'conj_sub':
                     if i == 0:  # Only count as beginning if it's the first word
                         features["begin_w_subordination"] += 1
-                elif word in conjunctions or pos == 'conj' or pos == 'conj_sub':
+                elif word in conjunctions or pos == 'conj':
                     if i == 0:  # Only count as beginning if it's the first word
                         features["begin_w_conjunction"] += 1
                     features["conjunction"] += 1
@@ -626,9 +626,9 @@ def calculate_grammar_features(essay):
                     if i == 0:  # Only count as beginning if it's the first word
                         features["begin_w_preposition"] += 1
                     features["prep_comma"] += 1
-                elif pos == 'verb':
+                elif pos.startswith("verb"):
                     lemma = word_analysis[0].analyses[0].analysis.get('lex', '')
-                    if lemma in aux_verbs:
+                    if lemma in aux_verbs or pos == 'verb_pseudo':
                         features["auxverb"] += 1
                 
                 # Check for nominalization (masdar/verbal noun)
