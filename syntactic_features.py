@@ -12,7 +12,7 @@ from camel_tools.utils.dediac import dediac_ar
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 # Initialize Arabic stopwords
 ARABIC_STOPWORDS = set(stopwords.words('arabic'))
-
+from spellchecker import SpellChecker
 
 def syllabify_arabic_word(word):
     """
@@ -936,6 +936,9 @@ def extract_syntactic_features(essay, _morph_analyzer, _mle_disambiguator):
     adv_count = 0
     num_count = 0
     misspelled_count = 0
+    spell_checker=SpellChecker(language='ar')
+    corrected_words = [spell_checker.correction(word) for word in words]
+    misspelled_count=sum(1 for orig, corrected in zip(words, corrected_words) if orig != corrected)
     
     # Count POS tags from morphological analysis
     for word in disambiguated:
@@ -961,9 +964,6 @@ def extract_syntactic_features(essay, _morph_analyzer, _mle_disambiguator):
                 conj_count += 1
             elif pos.startswith("NUM"):
                 num_count += 1
-        else:
-            # Count words without analysis as potentially misspelled
-            misspelled_count += 1
     
     features = {
         "noun_count": noun_count,
@@ -975,7 +975,7 @@ def extract_syntactic_features(essay, _morph_analyzer, _mle_disambiguator):
         "adv_count": adv_count,
         "conj_count": conj_count,
         "num_count": num_count,
-        "misspelled_count": misspelled_count,
+        "misspelled_count": len(misspelled_words),
         "inna_count": inna_count,
         "kana_count": kana_count
     }
