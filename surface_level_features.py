@@ -3,6 +3,9 @@ from camel_tools_init import _morph_analyzer
 import numpy as np
 from nltk.corpus import stopwords
 from camel_tools.utils.normalize import normalize_unicode
+import math
+import re
+
 
 ARABIC_STOPWORDS = set(stopwords.words('arabic'))
 
@@ -477,6 +480,79 @@ def calculate_advanced_punctuation_features(essay, _mle_disambiguator):
             features["quotation_mark_incorrect"] += 1
             
     return features
+
+
+def extract_surface_features(essay,intro_paragraph,body_paragraph,conclusion_paragraph):
+    #words
+    words = split_into_words(essay)
+    words_count = len(words)
+    log_words_count = math.log10(words_count)
+    unique_words = set(words)
+    unique_words_count = len(unique_words) #the set() removes duplicates
+    log_unique_words_count = math.log10(unique_words_count)
+    total_word_length = sum(len(word) for word in unique_words)#for unique words
+    average_word_length = total_word_length / unique_words_count if unique_words_count > 0 else 0
+    max_length_word = max(len(word) for word in unique_words)
+    min_length_word = min(len(word) for word in unique_words)
+    squared_diffs_words = [(len(word) - average_word_length) ** 2 for word in unique_words]
+    mean_squared_diffs_words = sum(squared_diffs_words) / len(squared_diffs_words)
+    standard_deviation_words= math.sqrt(mean_squared_diffs_words) #the standard deviation as a way to understand how much individual values within a group differ from the average value of that group
+
+    #General counts
+    chars_count = len(essay.replace(" ", "")) #not counting spaces
+    hmpz_count = len(re.findall(r'[أإءؤئ]', essay))# Number of <hmzp> (F22)
+    
+    #Paragraphs
+    paragraphs = [intro_paragraph,body_paragraph,conclusion_paragraph]
+    paragraphs_count =len(paragraphs)  #num_paragraphs = len(essay.split('\n')) #Number of paragraphs (F3)
+    is_first_paragraph_less_than_or_equal_to_10 = int(len(split_into_words(paragraphs[0])) <= 10 )#(F16)
+    paragraphs_lengths = [len(split_into_words(paragraph)) for paragraph in paragraphs] #length of each paragraph interms of words
+    average_length_paragraph = sum(paragraphs_lengths)/ paragraphs_count# Average length of paragraph (F11)
+    max_length_paragraph = max(paragraphs_lengths) # Maximum length of paragraph (F12)
+    min_length_paragraph = min(paragraphs_lengths) # Minimum length of paragraph (F13)
+    #Sentences
+    sentences = split_into_sentences(essay)
+    sentences_count = len(sentences) # Number of sentences (F5)
+    sentence_lengths = [len(split_into_words(sentence)) for sentence in sentences]
+    average_length_sentence = sum(sentence_lengths) / sentences_count    # Average length of sentence (F10)
+    max_length_sentence = max(sentence_lengths) # Maximum length of sentence 
+    min_length_sentence = min(sentence_lengths)# Minimum length of sentence 
+    squared_diff_sentence = [(length - average_length_sentence) ** 2 for length in sentence_lengths]
+    mean_squared_diff_sentence = np.mean(squared_diff_sentence)
+    standard_deviation_sentence = np.sqrt(mean_squared_diff_sentence)   
+    
+    #Grouping the features into a list
+    extracted_surface_features= [words_count,log_words_count,unique_words_count,log_unique_words_count,
+    average_word_length,max_length_word,min_length_word,standard_deviation_words,chars_count,hmpz_count, 
+    paragraphs_count,is_first_paragraph_less_than_or_equal_to_10,average_length_paragraph,
+    max_length_paragraph, min_length_paragraph, sentences_count, average_length_sentence,
+    max_length_sentence, min_length_sentence,standard_deviation_sentence]
+
+    features = {
+        "words_count": words_count,
+        "log_words_count": log_words_count,
+        "unique_words_count": unique_words_count,
+        "log_unique_words_count": log_unique_words_count,
+        "average_word_length": average_word_length,
+        "max_length_word": max_length_word,
+        "min_length_word": min_length_word,
+        "standard_deviation_words": standard_deviation_words,
+        "chars_count": chars_count,
+        "hmpz_count": hmpz_count,
+        "paragraphs_count": paragraphs_count,
+        "is_first_paragraph_less_than_or_equal_to_10": is_first_paragraph_less_than_or_equal_to_10,
+        "average_length_paragraph": average_length_paragraph,
+        "max_length_paragraph": max_length_paragraph,
+        "min_length_paragraph": min_length_paragraph,
+        "sentences_count": sentences_count,
+        "average_length_sentence": average_length_sentence,
+        "max_length_sentence": max_length_sentence,
+        "min_length_sentence": min_length_sentence,
+        "standard_deviation_sentence": standard_deviation_sentence
+    }
+    
+    return features
+
 
 
 
