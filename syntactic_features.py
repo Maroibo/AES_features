@@ -308,16 +308,15 @@ def calculate_possessive_features(essay):
     
     # Add counts to features
     for poss_type, count in poss_counts.items():
-        features[f"poss_{poss_type}"] = count
+        features[f"group_{poss_type}"] = count
     
     # Add sentence-level statistics
     total_sentences = len(sentences)
     if total_sentences > 0:
-        features["sentences_with_poss"] = len(sentences_with_poss)
-        features["sent_percent_poss"] = (len(sentences_with_poss) / total_sentences) * 100
+        features["sent_count_general_possessive"] = len(sentences_with_poss)
+        features["sent_percent_general_possessive"] = (len(sentences_with_poss) / total_sentences) * 100
     
     return features
-
 
 
 def get_top_n_words_from_essays(essays, n=100):
@@ -343,7 +342,9 @@ def get_top_n_words_from_essays(essays, n=100):
         
         # Update counts
         total_word_counts.update(words)
-    return total_word_counts
+    # Get the top N words
+    top_n_words = set(word for word, count in total_word_counts.most_common(n))
+    return top_n_words
 
 def calculate_top_n_word_features(essay, total_word_counts, n=100):
     """
@@ -354,22 +355,21 @@ def calculate_top_n_word_features(essay, total_word_counts, n=100):
         essay (str): The essay text
         n (int): Number of top words to consider (default 300)
     """
-    # Normalize and tokenize text
-    normalized_text = normalize_unicode(essay)
+    # Tokenize text
     words = split_into_words(essay)
-    
     # Remove stop words and normalize words
     words = [normalize_unicode(word) for word in words if word not in ARABIC_STOPWORDS]
+    # Count word frequencies in this essay
+    word_counts = Counter(words)
     
     # Get sentences for sentence-level features
     sentences = split_into_sentences(essay)
-    
-    # Count word frequencies in this essay
-    word_counts = Counter(words)
+    total_sentences = len(sentences)
     
     # Count sentences containing each word
     word_sentence_counts = defaultdict(int)
     word_sentence_percentages = defaultdict(float)
+    total_word_set = set(total_word_counts)
     
     for sentence in sentences:
         # Normalize and tokenize sentence
@@ -377,15 +377,13 @@ def calculate_top_n_word_features(essay, total_word_counts, n=100):
                         if w not in ARABIC_STOPWORDS)
         
         # Count sentences containing each word
-        for word in sent_words:
-            if word in total_word_counts:  # Only count if word is in top N
+        for word in sent_words & total_word_set:
+            # if word in total_word_counts:  # Only count if word is in top N
                 word_sentence_counts[word] += 1
     
     # Calculate sentence percentages
-    total_sentences = len(sentences)
-    for word in word_sentence_counts:
-        word_sentence_percentages[word] = (word_sentence_counts[word] / total_sentences 
-                                         if total_sentences > 0 else 0)
+    for word, count in word_sentence_counts.items():
+        word_sentence_percentages[word] = (count / total_sentences if total_sentences > 0 else 0)
     
     features = {}
     
@@ -393,15 +391,12 @@ def calculate_top_n_word_features(essay, total_word_counts, n=100):
     for word in total_word_counts:
         # Word count features
         features[f"top_n_word_count_{word}"] = word_counts[word]
-        
         # Sentence count features
         features[f"top_n_num_sent_have_{word}"] = word_sentence_counts[word]
-        
         # Sentence percentage features
         features[f"top_n_percentage_sent_have_{word}"] = word_sentence_percentages[word]
     
     return features
-
 
 def calculate_clause_features(essay):
     """
