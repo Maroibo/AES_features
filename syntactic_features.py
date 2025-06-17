@@ -8,6 +8,7 @@ import torch
 from collections import Counter
 import subprocess
 import os
+from camel_tools.utils.dediac import dediac_ar
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 # Initialize Arabic stopwords
 ARABIC_STOPWORDS = set(stopwords.words('arabic'))
@@ -196,51 +197,76 @@ def calculate_pronoun_features(essay):
             top_analysis = analysis.analyses[0].analysis
             pos = top_analysis.get('pos', '')
             # Check for pronouns using CAMeL Tools POS tags
-            if pos == 'pron' or pos == 'pron_dem':
+            # if pos == 'pron' or pos == 'pron_dem':
+            if 'pron' in pos:
                 # Get more specific features
                 pron_type = pos
-                gen = top_analysis.get('gen', '')
-                num = top_analysis.get('num', '')
+                # gen = top_analysis.get('gen', '')
+                # num = top_analysis.get('num', '')
                 per = top_analysis.get('per', '')
                 
-                # Create pronoun feature name
-                feature_key = f"{pron_type}"
-                if per:
+                # # Create pronoun feature name
+                # feature_key = f"{pron_type}"
+                if per and per != 'na':
                     feature_key += f"_{per}"
-                if gen:
-                    feature_key += f"_{gen}"
-                if num:
-                    feature_key += f"_{num}"
+                # if gen and gen != 'na':
+                #     feature_key += f"_{gen}"
+                # if num and num != 'na':
+                #     feature_key += f"_{num}"
+
+                feature_key = f"{pron_type}_" + dediac_ar(top_analysis.get('stem', ''))
                 
                 # Increment counts
                 pronoun_counts[feature_key] += 1
                 sentences_with_pronoun[feature_key].add(sent_idx)
+                # sentences_with_pronoun[pron_type].add(sent_idx)
                 
                 # Count pronoun groups efficiently
                 if pos == 'pron_dem':
                     group_counts['demonstrative'] += 1
-                elif pos == 'pron' and 'rat' in top_analysis and top_analysis['rat'] == 'r':
+                    sentences_with_pronoun['demonstrative'].add(sent_idx)
+                # elif pos == 'pron' and 'rat' in top_analysis and top_analysis['rat'] == 'r':
+                elif pos == 'pron_rel':
                     group_counts['relative'] += 1
+                    sentences_with_pronoun['relative'].add(sent_idx)
+                elif pos == 'pron_interrog':
+                    group_counts['interrogative'] += 1
+                    sentences_with_pronoun['interrogative'].add(sent_idx)
+                elif pos == 'pron_exclam':
+                    group_counts['exclamation'] += 1
+                    sentences_with_pronoun['exclamation'].add(sent_idx)
                 elif per == '1':
                     group_counts['first_person'] += 1
+                    sentences_with_pronoun['first_person'].add(sent_idx)
                 elif per == '2':
                     group_counts['second_person'] += 1
+                    sentences_with_pronoun['second_person'].add(sent_idx)
                 elif per == '3':
                     group_counts['third_person'] += 1
-    
+                    sentences_with_pronoun['third_person'].add(sent_idx)
+
     # Add counts to features (only for pronouns that actually appear)
     for pron_type, count in pronoun_counts.items():
         features[f"pron_{pron_type.lower()}"] = count
+        # The number of sentences that contain pron_type
+        features[f"sent_count_{pron_type.lower()}"] = len(sentences_with_pronoun[pron_type])
+        # The percentage of sentences that contain pronoun pron_type
+        features[f"sent_percent_{pron_type.lower()}"] = (len(sentences_with_pronoun[pron_type]) / len(sentences) * 100) if len(sentences) > 0 else 0
+
     
     for group, count in group_counts.items():
         features[f"group_{group}"] = count
+        # The number of sentences that contain group
+        features[f"sent_count_{group}"] = len(sentences_with_pronoun[group])
+        # The percentage of sentences that contain group
+        features[f"sent_percent_{group}"] = (len(sentences_with_pronoun[group]) / len(sentences) * 100) if len(sentences) > 0 else 0
     
     # Add sentence-level statistics
-    total_sentences = len(sentences)
-    if total_sentences > 0:
-        for pron_type, sent_set in sentences_with_pronoun.items():
-            features[f"sent_count_{pron_type.lower()}"] = len(sent_set)
-            features[f"sent_percent_{pron_type.lower()}"] = (len(sent_set) / total_sentences) * 100
+    # total_sentences = len(sentences)
+    # if total_sentences > 0:
+    #     for pron_type, sent_set in sentences_with_pronoun.items():
+    #         features[f"sent_count_{pron_type.lower()}"] = len(sent_set)
+    #         features[f"sent_percent_{pron_type.lower()}"] = (len(sent_set) / total_sentences) * 100
     
     return features
 
@@ -282,16 +308,15 @@ def calculate_possessive_features(essay):
     
     # Add counts to features
     for poss_type, count in poss_counts.items():
-        features[f"poss_{poss_type}"] = count
+        features[f"group_{poss_type}"] = count
     
     # Add sentence-level statistics
     total_sentences = len(sentences)
     if total_sentences > 0:
-        features["sentences_with_poss"] = len(sentences_with_poss)
-        features["sent_percent_poss"] = (len(sentences_with_poss) / total_sentences) * 100
+        features["sent_count_general_possessive"] = len(sentences_with_poss)
+        features["sent_percent_general_possessive"] = (len(sentences_with_poss) / total_sentences) * 100
     
     return features
-
 
 
 def get_top_n_words_from_essays(essays, n=100):
@@ -317,7 +342,9 @@ def get_top_n_words_from_essays(essays, n=100):
         
         # Update counts
         total_word_counts.update(words)
-    return total_word_counts
+    # Get the top N words
+    top_n_words = set(word for word, count in total_word_counts.most_common(n))
+    return top_n_words
 
 def calculate_top_n_word_features(essay, total_word_counts, n=100):
     """
@@ -328,22 +355,21 @@ def calculate_top_n_word_features(essay, total_word_counts, n=100):
         essay (str): The essay text
         n (int): Number of top words to consider (default 300)
     """
-    # Normalize and tokenize text
-    normalized_text = normalize_unicode(essay)
+    # Tokenize text
     words = split_into_words(essay)
-    
     # Remove stop words and normalize words
     words = [normalize_unicode(word) for word in words if word not in ARABIC_STOPWORDS]
+    # Count word frequencies in this essay
+    word_counts = Counter(words)
     
     # Get sentences for sentence-level features
     sentences = split_into_sentences(essay)
-    
-    # Count word frequencies in this essay
-    word_counts = Counter(words)
+    total_sentences = len(sentences)
     
     # Count sentences containing each word
     word_sentence_counts = defaultdict(int)
     word_sentence_percentages = defaultdict(float)
+    total_word_set = set(total_word_counts)
     
     for sentence in sentences:
         # Normalize and tokenize sentence
@@ -351,15 +377,13 @@ def calculate_top_n_word_features(essay, total_word_counts, n=100):
                         if w not in ARABIC_STOPWORDS)
         
         # Count sentences containing each word
-        for word in sent_words:
-            if word in total_word_counts:  # Only count if word is in top N
+        for word in sent_words & total_word_set:
+            # if word in total_word_counts:  # Only count if word is in top N
                 word_sentence_counts[word] += 1
     
     # Calculate sentence percentages
-    total_sentences = len(sentences)
-    for word in word_sentence_counts:
-        word_sentence_percentages[word] = (word_sentence_counts[word] / total_sentences 
-                                         if total_sentences > 0 else 0)
+    for word, count in word_sentence_counts.items():
+        word_sentence_percentages[word] = (count / total_sentences if total_sentences > 0 else 0)
     
     features = {}
     
@@ -367,15 +391,12 @@ def calculate_top_n_word_features(essay, total_word_counts, n=100):
     for word in total_word_counts:
         # Word count features
         features[f"top_n_word_count_{word}"] = word_counts[word]
-        
         # Sentence count features
         features[f"top_n_num_sent_have_{word}"] = word_sentence_counts[word]
-        
         # Sentence percentage features
         features[f"top_n_percentage_sent_have_{word}"] = word_sentence_percentages[word]
     
     return features
-
 
 def calculate_clause_features(essay):
     """
