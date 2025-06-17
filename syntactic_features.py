@@ -12,9 +12,7 @@ from camel_tools.utils.dediac import dediac_ar
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 # Initialize Arabic stopwords
 ARABIC_STOPWORDS = set(stopwords.words('arabic'))
-from camel_tools_init import _morph_analyzer
-
-
+from spellchecker import SpellChecker
 
 def syllabify_arabic_word(word):
     """
@@ -916,3 +914,102 @@ def count_conjunctions_and_transitions(essay):
     
     return results
 
+def extract_syntactic_features(essay, _morph_analyzer, _mle_disambiguator):
+    # Normalize the text
+    normalized_text = normalize_unicode(essay)
+    words = split_into_words(normalized_text)
+    
+    # Get morphological analyses
+    analyses = _morph_analyzer.analyze_text(normalized_text)
+    disambiguated = _mle_disambiguator.disambiguate(analyses)
+    
+    # counting inna words and kaana words
+    inna_words = ["أن", "إن", "كأن", "لكن", "ليت", "لعل"]
+    kana_words = ["كان", "أضحى", "مازال", "لیس", "ماظل", "أمسى", "مافتئ", "بات", "صار", "ظل", "ماانفك", "مابرح", "مادام", "أصبح"]
+    
+    inna_count = sum(1 for word in words if word in inna_words)
+    kana_count = sum(1 for word in words if word in kana_words)
+    
+    # Initialize counters
+    noun_count = 0
+    verb_count = 0
+    adj_count = 0
+    punc_count = 0
+    pron_count = 0
+    prep_count = 0
+    conj_count = 0
+    adv_count = 0
+    num_count = 0
+    misspelled_count = 0
+    spell_checker=SpellChecker(language='ar')
+    corrected_words = [spell_checker.correction(word) for word in words]
+    misspelled_count=sum(1 for orig, corrected in zip(words, corrected_words) if orig != corrected)
+    
+    # Count POS tags from morphological analysis
+    for word in disambiguated:
+        if word and len(word) > 0 and word.analyses:
+            analysis = word.analyses[0].analysis
+            pos = analysis.pos
+            
+            if pos.startswith(('NOUN', 'DET')):
+                noun_count += 1
+            elif pos.startswith('V'):
+                verb_count += 1
+            elif pos.startswith("ADJ"):
+                adj_count += 1
+            elif pos.startswith("PUNC"):
+                punc_count += 1
+            elif pos.startswith("PRON"):
+                pron_count += 1
+            elif pos.startswith("PREP"):
+                prep_count += 1
+            elif pos.startswith("ADV"):
+                adv_count += 1
+            elif pos.startswith("CONJ"):
+                conj_count += 1
+            elif pos.startswith("NUM"):
+                num_count += 1
+    
+    features = {
+        "noun_count": noun_count,
+        "verb_count": verb_count,
+        "adj_count": adj_count,
+        "punc_count": punc_count,
+        "pron_count": pron_count,
+        "prep_count": prep_count,
+        "adv_count": adv_count,
+        "conj_count": conj_count,
+        "num_count": num_count,
+        "misspelled_count": len(misspelled_words),
+        "inna_count": inna_count,
+        "kana_count": kana_count
+    }
+    
+    return features
+
+
+
+def extract_lexical_features(essay,intro_paragraph,body_paragraph,conclusion_paragraph):
+    
+    #Count of stop words and words without stop words
+    wordsList = split_into_words(essay)
+    stop_words_count =  sum(1 for word in wordsList if word in ARABIC_STOPWORDS)
+    words_count_without_stopwords = sum(1 for word in wordsList if word not in ARABIC_STOPWORDS)
+
+    #Existence of introducing and concluding words
+    intro_keywords = ['نبدأ','بداية', 'نتحدث', 'نتكلم', 'نستعرض', 'الموضوع', 'في البداية', 'أولاً', 'أود أن أبدأ ب', 'أقدم', 'أعرض']
+    conclusion_keywords = ['أختم','أرى', 'أخيراً', 'أرجو', 'وجهة نظر', 'أقترح', 'أتمنى', 'في الختام', 'ختاماً', 'أختاماً', 'خلاصة', 'باختصار']
+    first_paragraph_has_intro_words = int(any(re.search(r'\b{}\b'.format(keyword), intro_paragraph) for keyword in intro_keywords)  )
+    last_paragraph_has_conclusion_words = int(any(re.search(r'\b{}\b'.format(keyword), conclusion_paragraph) for keyword in conclusion_keywords) )
+
+
+
+    extracted_lexical_features = [stop_words_count, words_count_without_stopwords,first_paragraph_has_intro_words,last_paragraph_has_conclusion_words]
+    
+    features = {
+        "stop_words_count": stop_words_count,
+        "words_count_without_stopwords": words_count_without_stopwords,
+        "first_paragraph_has_intro_words": first_paragraph_has_intro_words,
+        "last_paragraph_has_conclusion_words": last_paragraph_has_conclusion_words
+    }
+    return features
