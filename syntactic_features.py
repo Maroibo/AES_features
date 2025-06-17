@@ -12,6 +12,8 @@ from camel_tools.utils.dediac import dediac_ar
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 # Initialize Arabic stopwords
 ARABIC_STOPWORDS = set(stopwords.words('arabic'))
+from camel_tools_init import _morph_analyzer
+
 
 
 def syllabify_arabic_word(word):
@@ -688,7 +690,7 @@ def calculate_nominal_verbal_sentences(essay):
     verbal_sentences=0
     for sentence in sentences:
         words=split_into_words(sentence)
-        # check the first three words if it contains a verb then the sentence is verbal if not then the sentence is nominal
+        # check the first three words of it contains a verb then the sentence is verbal if not then the sentence is nominal
         words_to_check=words[:3]
         for word in words_to_check:
             word_analysis = _mle_disambiguator.disambiguate([word])
@@ -704,7 +706,7 @@ def calculate_nominal_verbal_sentences(essay):
         'verbal_sentences': verbal_sentences
     }
 
-def count_jazm_particles(essay, _morph_analyzer):
+def count_jazm_particles(essay):
     """
     Count jazm particles and track when they're followed by plural verbs ending with ن.
     Uses both morphological tags and particle list for validation.
@@ -716,8 +718,8 @@ def count_jazm_particles(essay, _morph_analyzer):
     
     # Correct list of jazm particles
     jazm_particles = {
-        "لم", "لما", "لام الأمر", "لا الناهية", "إن", "من", "ما", "مهما", "متى",
-        "كيفما", "أنى", "أيان", "أي", "أينما", "حيثما", "إذما", "إذا"
+        "لم", "لما", "لام الأمر", "لا", "إن", "من", "ما", "مهما", "متى",
+        "كيفما", "أنى", "أيان", "أي", "أينما", "حيثما", "إذما", "إذا",'لن'
     }
     
     words = split_into_words(essay)
@@ -727,27 +729,29 @@ def count_jazm_particles(essay, _morph_analyzer):
         if analyses:
             analysis = analyses[0]
             is_jazm = False
-            
-            # Check for لام التعليل using prc1 tag
-            if 'prc1' in analysis and analysis['prc1'] == 'li_prep':
+            pos_type = analysis.get('pos')
+            # Check for لام using prc1 tag, and it should be followed by a verb
+            # if 'prc1' in analysis and analysis['prc1'] == 'li_prep':
+            if 'prc1' in analysis and pos_type == 'verb' and 'li' in analysis['prc1']:
+                jazm_stats["total_jazm"] += 1 # This is for sure a jazm particle
                 is_jazm = True
             
             # Check for negative particles using pos tag and bw field
-            elif analysis.get('pos') == 'part_neg':
+            elif pos_type == 'part_neg':
                 bw = analysis.get('bw', '')
                 if '/NEG_PART' in bw:  # This will catch both لم and لن
                     is_jazm = True
             
             # Check for conditional and relative particles
-            elif analysis.get('pos') in ['part', 'conj']:
+            elif pos_type in ['part', 'conj']:
                 bw = analysis.get('bw', '')
                 # Check if the word contains any of the particles in the bw field
                 if any(particle in bw for particle in jazm_particles):
                     is_jazm = True
             
             if is_jazm:
-                print(f"Found jazm particle: {word}")
-                jazm_stats["total_jazm"] += 1
+                # print(f"Found jazm particle: {word}")
+                # jazm_stats["total_jazm"] += 1
                 
                 # Check if followed by a plural verb ending with ن
                 if i + 1 < len(words):
@@ -755,6 +759,9 @@ def count_jazm_particles(essay, _morph_analyzer):
                     next_analysis = _morph_analyzer.analyze(next_word)
                     
                     if next_analysis and next_analysis[0].get('pos') == 'verb':
+                        # jazm particles must be followed by a verb
+                        if pos_type != 'verb': # This condition is to execlude لام الأمر و لام الناهية because they are already considered
+                            jazm_stats["total_jazm"] += 1
                         # Check for plural verb with ن ending
                         if (next_analysis[0].get('num') == 'p' and 
                             next_word.endswith('ن')):
