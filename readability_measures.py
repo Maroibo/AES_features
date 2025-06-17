@@ -19,16 +19,14 @@ def calculate_readability_scores(essay):
     - LIX: adapted for Arabic
     - RIX: adapted for Arabic
     - GunningFogIndex: adapted for Arabic
-    - DaleChallIndex: adapted for Arabic using common word list
-    - MADAD: Arabic Specific Readability Measure
     - OSMAN: Arabic Specific Readability Measure
+    - AARIBase: Automated Arabic Readability Index
+    - Heeti: AlHeeti Grade Level Index
     """
     syllable_features = calculate_syllable_features(essay)
     syllable_count = syllable_features['syllables']
     complex_words_count = syllable_features['complex_words']
     # Count sentences
-    sentences = list(filter(str.strip, re.split(r'[.،!؛:؟]', essay)))
-    sentence_count = len(sentences)
     words = split_into_words(essay)
     word_count = len(words)
     char_count = count_chars(essay)
@@ -46,8 +44,6 @@ def calculate_readability_scores(essay):
     chars_per_word = char_count / word_count
     percent_complex_words = (complex_words_count / word_count) * 100
     percent_long_words = (long_words_count / word_count) * 100
-    percent_difficult_words = (complex_words_count / word_count) * 100
-    characters_per_word = char_count / word_count
 
     # Calculate Flesch Reading Ease (adapted for Arabic)
     # Original formula: 206.835 - 1.015 * (words/sentences) - 84.6 * (syllables/words)
@@ -67,7 +63,7 @@ def calculate_readability_scores(essay):
     # where easy_words have 1-2 syllables, difficult have 3+ syllables
     easy_words_count = word_count - complex_words_count
     linsear_score = (easy_words_count * 1 + complex_words_count * 3) / sentence_count
-    linsear_score = (linsear_score - 2) / 2 if linsear_score > 10 else linsear_score / 2
+    linsear_score = (linsear_score - 2) / 2 if linsear_score <= 20 else linsear_score / 2
     
     # Calculate Flesch-Kincaid Grade Level (Kincaid)
     # Original: 0.39 * (words_per_sentence) + 11.8 * (syllables_per_word) - 15.59
@@ -126,15 +122,11 @@ def calculate_readability_scores(essay):
     # NOC = number of characters
     # ACW = average characters per word
     # AWS = average words per sentence
-    NOC = char_count
-    ACW = char_count / word_count if word_count > 0 else 0
-    AWS = word_count / sentence_count if sentence_count > 0 else 0
-    aari_base = (3.28 * NOC) + (1.43 * ACW) + (1.24 * AWS)
+    aari_base = (3.28 * char_count) + (1.43 * chars_per_word) + (1.24 * words_per_sentence)
 
     # Calculate Heeti
     # AWL = average word length (number of characters / number of words)
-    AWL = char_count / word_count if word_count > 0 else 0
-    heeti = (AWL * 4.414) - 13.468
+    heeti = (chars_per_word * 4.414) - 13.468
 
     return {
         "FleschReadingEase": flesch_score,
