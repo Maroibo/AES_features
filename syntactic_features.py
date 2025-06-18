@@ -847,23 +847,15 @@ def count_conjunctions_and_transitions(essay):
     # Count occurrences of each conjunction and its variations
     for conjunction, variations in conjunctions_dict.items():
         for variation in variations:
+            
             # Count exact matches
-            count = normalized_text.count(variation)
-            results[conjunction] += count
-            
-            # Count with spaces around the conjunction
-            spaced_variation = f" {variation} "
-            count = normalized_text.count(spaced_variation)
-            results[conjunction] += count
-            
-            # Count at the beginning of sentences
-            sentence_start = f"{variation} "
-            count = normalized_text.count(sentence_start)
-            results[conjunction] += count
-            
-            # Count at the end of sentences
-            sentence_end = f" {variation}"
-            count = normalized_text.count(sentence_end)
+            # TODO: Not the best way to count variations, phrases can be rule based and word-based conjunctions should be handled by camel-tools for more accurate results
+            # count = normalized_text.count(variation)
+            # results[conjunction] += count
+            # This pattern matches the word with optional prefixes وف or و
+            # pattern = r'(?<!\w)(?:[وف]?){word}'.format(word=re.escape(variation))
+            pattern = r'(?<!\w)(?:[وف]?){word}(?!\w\w)'.format(word=re.escape(variation))
+            count = len(re.findall(pattern, normalized_text))
             results[conjunction] += count
             
             # Track positions and unique connectives
@@ -872,13 +864,16 @@ def count_conjunctions_and_transitions(essay):
                 # Find all positions of this variation
                 start = 0
                 while True:
-                    pos = normalized_text.find(variation, start)
+                    # pos = normalized_text.find(variation, start)
+                    t = normalized_text[start:]
+                    pos = re.search(pattern, normalized_text[start:])
+                    pos = pos.start() + start if pos else -1
                     if pos == -1:
                         break
                     # Convert character position to word position
                     word_pos = len(split_into_words(normalized_text[:pos]))
                     connective_positions.append(word_pos)
-                    start = pos + 1
+                    start = pos + 1 + len(variation)  # Move past this occurrence
     
     # Calculate distances between connectives
     connective_positions.sort()
@@ -888,9 +883,11 @@ def count_conjunctions_and_transitions(essay):
             distance = connective_positions[i + 1] - connective_positions[i]
             distances.append(distance)
     
+    # Calculate total count
+    total_count = sum(results.values())
     # Calculate ratios and add to results
     if total_words > 0:
-        results['connective_ratio'] = sum(results.values()) / total_words
+        results['connective_ratio'] = total_count / total_words
         results['unique_connective_ratio'] = len(unique_connectives) / total_words
     else:
         results['connective_ratio'] = 0
@@ -901,8 +898,7 @@ def count_conjunctions_and_transitions(essay):
         results["average_connective_distance"] = sum(distances) / len(distances)
     else:
         results["average_connective_distance"] = 0
-    # Calculate total count
-    total_count = sum(results.values())
+    
     
     # Add total to results
     results['total_conjunctions'] = total_count
@@ -911,6 +907,12 @@ def count_conjunctions_and_transitions(essay):
     for conjunction in conjunctions_dict.keys():
         if conjunction not in results:
             results[conjunction] = 0
+
+    assert total_count == len(connective_positions), f"Total count of connectives does not match the number of positions tracked ({total_count} != {len(connective_positions)})"
+    assert len(unique_connectives) <= total_count, "Unique connectives count exceeds total count"
+    assert len(distances) == total_count - 1 if total_count > 1 else True, "Distance count does not match expected number of connectives"
+    # all distances are less than or equal to the total number of words
+    assert all(distance <= total_words for distance in distances), "Distance exceeds total number of words"
     
     return results
 
@@ -986,8 +988,6 @@ def extract_syntactic_features(essay, _morph_analyzer, _mle_disambiguator):
     }
     
     return features
-
-
 
 def extract_lexical_features(essay,intro_paragraph,body_paragraph,conclusion_paragraph):
     
