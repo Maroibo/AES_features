@@ -920,35 +920,44 @@ def count_conjunctions_and_transitions(essay):
     
     return results
 
-def extract_syntactic_features(essay, _morph_analyzer, _mle_disambiguator):
+def extract_syntactic_features(essay, _mle_disambiguator):
     # Normalize the text
     normalized_text = normalize_unicode(essay)
     words = split_into_words(normalized_text)
     
     # Get morphological analyses
-    analyses = _morph_analyzer.analyze_text(normalized_text)
-    disambiguated = _mle_disambiguator.disambiguate(analyses)
+    disambiguated = _mle_disambiguator.disambiguate(words)
     
     # counting inna words and kaana words
     inna_words = ["أن", "إن", "كأن", "لكن", "ليت", "لعل"]
     kana_words = ["كان", "أضحى", "مازال", "لیس", "ماظل", "أمسى", "مافتئ", "بات", "صار", "ظل", "ماانفك", "مابرح", "مادام", "أصبح"]
-    # check if the word has و,ف before the word or has diatrics normalizer before the word
-    inna_count = sum(1 for word in words if re.search(r'و|ف', word) and word in inna_words)
-    kana_count = sum(1 for word in words if re.search(r'و|ف', word) and word in kana_words)
+
+    # Create a regex pattern to match kana words with optional و or ف before them
+    base_pattern = '|'.join(map(re.escape, kana_words))
+    pattern = re.compile(r'^[وف]?(' + base_pattern + r')(\w{0,3})?$')
+    kana_count = sum(1 for word in words if pattern.match(word))
+
+    # Create a regex pattern to match inna words with optional و or ف before them
+    base_pattern = '|'.join(map(re.escape, inna_words))
+    pattern = re.compile(r'^[وف]?(' + base_pattern + r')(\w{0,3})?$')
+    inna_count = sum(1 for word in words if pattern.match(word))
+
     # Initialize counters
     verb_count = 0
     misspelled_count = 0
-    spell_checker=SpellChecker(language='ar')
-    corrected_words = [spell_checker.correction(word) for word in words]
-    misspelled_count=sum(1 for orig, corrected in zip(words, corrected_words) if orig != corrected)
+    spell_checker = SpellChecker(language='ar')
+    # Use a set for faster lookup and only check unique words
+    unique_words = set(words)
+    misspelled = spell_checker.unknown(unique_words)
+    misspelled_count = sum(1 for word in words if word in misspelled)
     
     # Count POS tags from morphological analysis
     for word in disambiguated:
         if word and len(word) > 0 and word.analyses:
             analysis = word.analyses[0].analysis
-            pos = analysis.pos
-            
-            if pos.startswith('V'):
+            pos = analysis.get('pos', '')
+
+            if pos.startswith('verb'):
                 verb_count += 1
     features = {
         "verb_count": verb_count,
