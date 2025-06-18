@@ -1,9 +1,9 @@
 from camel_tools_init import (get_disambiguator, get_analyzer, get_sentiment_analyzer, 
                               get_bert_model, get_tagger, _mle_disambiguator, 
                               _morph_analyzer, _sentiment_analyzer, _bert_tokenizer, 
-                              _bert_model, _default_tagger)
+                              _bert_model, _default_tagger,get_dialect_id,_dialect_id)
 from essay_proccessing import split_into_sentences, split_into_paragraphs
-from syntactic_features import count_jazm_particles
+from syntactic_features import count_jazm_particles,analyze_dialect_usage
 import pandas as pd
 from camel_tools.utils.normalize import normalize_unicode
 # contansts
@@ -22,6 +22,7 @@ def main():
     _sentiment_analyzer = get_sentiment_analyzer()
     _bert_tokenizer, _bert_model = get_bert_model()
     _default_tagger = get_tagger()
+    _dialect_id=get_dialect_id()
     df=pd.read_csv(INPUT_FILE_PATH)
     df=df[df.essay_set.isin([1,2,3,4])];
     paragraphs_df=pd.read_csv(INPUT_PARAGRAPHS_FILE_PATH)
@@ -35,6 +36,9 @@ def main():
         conclusion_paragraph=paragraphs_df[paragraphs_df['essay_id']==id]['conclusion'].values[0]
         longest_paragaph_length=max(len(intro_paragraph),len(body_paragraph),len(conclusion_paragraph))
         shortest_paragaph_length=min(len(intro_paragraph),len(body_paragraph),len(conclusion_paragraph))
+        dialect_features=analyze_dialect_usage(essay,_dialect_id)
+        print(dialect_features)
+        break
         features_df=pd.concat([features_df,pd.DataFrame({
             'essay_id':id,
             'longest_paragaph_length':longest_paragaph_length,

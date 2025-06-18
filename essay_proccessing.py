@@ -38,3 +38,44 @@ def split_into_words(essay):
 def count_chars(essay):
     char_count = len(essay.replace(" ", ""))
     return char_count
+
+
+def remove_diatrics_normalizer(essay):
+    """
+    Remove all Arabic diacritics from the text.
+    
+    Args:
+        essay (str): Arabic text with diacritics
+        
+    Returns:
+        str: Text with all diacritics removed
+    """
+    # Define all Arabic diacritics with their Unicode codes
+    diacritics = {
+        # Basic short vowels
+        '\u064E',  # Fatha (َ)
+        '\u064F',  # Damma (ُ)
+        '\u0650',  # Kasra (ِ)
+        
+        # Tanwin (nunation) - double vowels
+        '\u064B',  # Fathatan (ً)
+        '\u064C',  # Dammatan (ٌ)
+        '\u064D',  # Kasratan (ٍ)
+        
+        # Other diacritical marks
+        '\u0652',  # Sukoon (ْ)
+        '\u0651',  # Shadda (ّ)
+        
+        # Additional diacritics
+        '\u0653',  # Madda (ٓ)
+        '\u0654',  # Hamza above (ٔ)
+        '\u0655',  # Hamza below (ٕ)
+        '\u0670',  # Superscript alef (ٰ)
+    }
+    
+    # Remove all diacritics from the text
+    cleaned_text = essay
+    for diacritic in diacritics:
+        cleaned_text = cleaned_text.replace(diacritic, '')
+    
+    return cleaned_text

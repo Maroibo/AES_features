@@ -638,12 +638,13 @@ def calculate_grammar_features(essay):
     
     return features
 
-def analyze_dialect_usage(text):
+def analyze_dialect_usage(text, _dialect_id):
     """
     Analyze dialect usage in Arabic text using CAMeL Tools dialect identification models.
     
     Args:
         text (str): The Arabic text to analyze
+        _dialect_id: The dialect identifier object from CAMeL Tools
         
     Returns:
         dict: A dictionary containing dialect usage statistics including:
@@ -667,20 +668,23 @@ def analyze_dialect_usage(text):
     # Analyze each sentence
     for sentence in sentences:
         # Get dialect prediction for the sentence
-        prediction = _dialect_id.predict(sentence)
-        dialect = prediction['dialect']
+        prediction = _dialect_id.predict([sentence])[0]  # predict returns a list, get first element
+        # Access the top dialect from the DIDPred object
+        dialect = prediction.top
         dialect_counts[dialect] += 1
+    
     # Calculate MSA vs dialect percentages
     msa_count = dialect_counts.get('MSA', 0)
-    msa_percentage = (msa_count / total_sentences) * 100
+    msa_percentage = (msa_count / total_sentences) * 100 if total_sentences > 0 else 0
     dialect_percentage = 100 - msa_percentage
     
-    
     return {
-        'dialect_counts': dict(dialect_counts),
+        'dialect_counts': len(dialect_counts),
         'msa_percentage': msa_percentage,
         'dialect_percentage': dialect_percentage,
     }
+
+
 
 def calculate_nominal_verbal_sentences(essay):
     sentences=split_into_sentences(essay)
@@ -704,7 +708,7 @@ def calculate_nominal_verbal_sentences(essay):
         'verbal_sentences': verbal_sentences
     }
 
-def count_jazm_particles(essay):
+def count_jazm_particles(essay,_morph_analyzer):
     """
     Count jazm particles and track when they're followed by plural verbs ending with ن.
     Uses both morphological tags and particle list for validation.
@@ -926,20 +930,11 @@ def extract_syntactic_features(essay, _morph_analyzer, _mle_disambiguator):
     # counting inna words and kaana words
     inna_words = ["أن", "إن", "كأن", "لكن", "ليت", "لعل"]
     kana_words = ["كان", "أضحى", "مازال", "لیس", "ماظل", "أمسى", "مافتئ", "بات", "صار", "ظل", "ماانفك", "مابرح", "مادام", "أصبح"]
-    
-    inna_count = sum(1 for word in words if word in inna_words)
-    kana_count = sum(1 for word in words if word in kana_words)
-    
+    # check if the word has و,ف before the word or has diatrics normalizer before the word
+    inna_count = sum(1 for word in words if re.search(r'و|ف', word) and word in inna_words)
+    kana_count = sum(1 for word in words if re.search(r'و|ف', word) and word in kana_words)
     # Initialize counters
-    noun_count = 0
     verb_count = 0
-    adj_count = 0
-    punc_count = 0
-    pron_count = 0
-    prep_count = 0
-    conj_count = 0
-    adv_count = 0
-    num_count = 0
     misspelled_count = 0
     spell_checker=SpellChecker(language='ar')
     corrected_words = [spell_checker.correction(word) for word in words]
@@ -951,36 +946,11 @@ def extract_syntactic_features(essay, _morph_analyzer, _mle_disambiguator):
             analysis = word.analyses[0].analysis
             pos = analysis.pos
             
-            if pos.startswith(('NOUN', 'DET')):
-                noun_count += 1
-            elif pos.startswith('V'):
+            if pos.startswith('V'):
                 verb_count += 1
-            elif pos.startswith("ADJ"):
-                adj_count += 1
-            elif pos.startswith("PUNC"):
-                punc_count += 1
-            elif pos.startswith("PRON"):
-                pron_count += 1
-            elif pos.startswith("PREP"):
-                prep_count += 1
-            elif pos.startswith("ADV"):
-                adv_count += 1
-            elif pos.startswith("CONJ"):
-                conj_count += 1
-            elif pos.startswith("NUM"):
-                num_count += 1
-    
     features = {
-        "noun_count": noun_count,
         "verb_count": verb_count,
-        "adj_count": adj_count,
-        "punc_count": punc_count,
-        "pron_count": pron_count,
-        "prep_count": prep_count,
-        "adv_count": adv_count,
-        "conj_count": conj_count,
-        "num_count": num_count,
-        "misspelled_count": len(misspelled_words),
+        "misspelled_count": misspelled_count,
         "inna_count": inna_count,
         "kana_count": kana_count
     }
