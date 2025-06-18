@@ -6,3 +6,4 @@
 *.pywz
 *.pyzw
 *.pyzwz
+__pycache__/
