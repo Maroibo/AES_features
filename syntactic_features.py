@@ -969,12 +969,25 @@ def extract_lexical_features(essay,intro_paragraph,body_paragraph,conclusion_par
     #Existence of introducing and concluding words
     intro_keywords = ['نبدأ','بداية', 'نتحدث', 'نتكلم', 'نستعرض', 'الموضوع', 'في البداية', 'أولاً', 'أود أن أبدأ ب', 'أقدم', 'أعرض']
     conclusion_keywords = ['أختم','أرى', 'أخيراً', 'أرجو', 'وجهة نظر', 'أقترح', 'أتمنى', 'في الختام', 'ختاماً', 'أختاماً', 'خلاصة', 'باختصار']
+    
+    # Find the stems of the intro and conclusion keywords
+    intro_keywords_analyses = _morph_analyzer.analyze_words(intro_keywords)
+    conclusion_keywords_analyses = _morph_analyzer.analyze_words(conclusion_keywords)
+    intro_keywords_stems = [dediac_ar(analysis.analyses[0]['stem']) for analysis in intro_keywords_analyses if analysis.analyses]
+    conclusion_keywords_stems = [dediac_ar(analysis.analyses[0]['stem']) for analysis in conclusion_keywords_analyses if analysis.analyses]
+    # Find the stems of the first and last paragraphs
+    intro_analyses = _morph_analyzer.analyze_words(split_into_words(intro_paragraph))
+    conclusion_analyses = _morph_analyzer.analyze_words(split_into_words(conclusion_paragraph))
+    intro_stem = [dediac_ar(analysis.analyses[0]['stem']) for analysis in intro_analyses if analysis.analyses]
+    conclusion_stem = [dediac_ar(analysis.analyses[0]['stem']) for analysis in conclusion_analyses if analysis.analyses]
+    # Check if the paragraphs contains any of the keywords
     first_paragraph_has_intro_words = int(any(re.search(r'\b{}\b'.format(keyword), intro_paragraph) for keyword in intro_keywords)  )
-    last_paragraph_has_conclusion_words = int(any(re.search(r'\b{}\b'.format(keyword), conclusion_paragraph) for keyword in conclusion_keywords) )
+    last_paragraph_has_conclusion_words = int(any(re.search(r'\b{}\b'.format(keyword), conclusion_paragraph) for keyword in conclusion_keywords))
 
-
-
-    extracted_lexical_features = [stop_words_count, words_count_without_stopwords,first_paragraph_has_intro_words,last_paragraph_has_conclusion_words]
+    # Check if the first paragraph contains any of the intro keywords stems
+    first_paragraph_has_intro_words += int(any(stem in intro_stem for stem in intro_keywords_stems))
+    # check if the last paragraph contains any of the conclusion keywords stems
+    last_paragraph_has_conclusion_words += int(any(stem in conclusion_stem for stem in conclusion_keywords_stems))
     
     features = {
         "stop_words_count": stop_words_count,
