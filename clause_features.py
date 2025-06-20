@@ -2,6 +2,14 @@
 A module for calculating clause-based syntactic features from Arabic text
 using the CamelParser dependency parser.
 """
+import logging
+
+# Aggressively disable all logging by removing handlers from the root logger.
+# This prevents any third-party library from creating log files.
+root_logger = logging.getLogger()
+for handler in root_logger.handlers[:]:
+    root_logger.removeHandler(handler)
+root_logger.setLevel(logging.CRITICAL)
 
 from pathlib import Path
 from camel_tools.utils.charmap import CharMapper
@@ -10,10 +18,6 @@ from collections import defaultdict
 import re
 from essay_proccessing import split_into_sentences
 import sys
-import logging
-
-# Set up a logger for this module
-logging.basicConfig(level=logging.WARNING, format='%(asctime)s - %(levelname)s - %(message)s')
 
 # Import CamelParser modules
 # Ensure the camel_parser path is available
@@ -67,8 +71,8 @@ class ClauseAnalyzer:
                 self.morphology_db_type
             )
             return parse_text("text", file_type_params)
-        except Exception as e:
-            logging.error(f"Error in CamelParser sentence parsing: {e}")
+        except Exception:
+            # Silently fail on parsing error
             return []
     
     def _extract_dependency_tree(self, sentence_tuples):
@@ -132,7 +136,6 @@ class ClauseAnalyzer:
         root_verbs = [t for t in tokens if t.HEAD == 0]
         
         if not root_verbs:
-            logging.warning("No root verb found in a sentence, clause analysis may be incomplete.")
             return []
         
         processed_verbs = set()
