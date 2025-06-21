@@ -6,7 +6,10 @@ from camel_tools.utils.normalize import normalize_unicode
 
 def split_into_sentences(essay):
     _SENTENCE_SPLIT_REGEX = re.compile(r'[.!?;؟،:]\s+')
-    return _SENTENCE_SPLIT_REGEX.split(essay)
+    sentences = _SENTENCE_SPLIT_REGEX.split(essay)
+    # Remove any empty sentences that may result from splitting
+    sentences = [s.strip() for s in sentences if s.strip()]
+    return sentences
 
 def split_into_paragraphs(essay):
     # this method is just a naive implementation
