@@ -7,7 +7,7 @@ import pandas as pd
 from syntactic_features import calculate_syllable_features, syllabify_arabic_word
 
 
-def calculate_readability_scores(essay):
+def calculate_readability_scores(essay,_mle_disambiguator):
     """
     Calculate readability scores for Arabic text including:
     - FleschReadingEase: adapted for Arabic using custom syllable count
@@ -23,7 +23,7 @@ def calculate_readability_scores(essay):
     - AARIBase: Automated Arabic Readability Index
     - Heeti: AlHeeti Grade Level Index
     """
-    syllable_features = calculate_syllable_features(essay)
+    syllable_features = calculate_syllable_features(essay,_mle_disambiguator)
     syllable_count = syllable_features['syllables']
     complex_words_count = syllable_features['complex_words']
     # Count sentences
@@ -106,7 +106,7 @@ def calculate_readability_scores(essay):
     faseeh_endings = ( 'وا', 'ون')
     for w in words:
         wn = normalize_unicode(w.strip())
-        syllables = syllabify_arabic_word(wn)
+        syllables = syllabify_arabic_word(wn,_mle_disambiguator)
         if len(syllables) > 4:
             complex_words_4plus += 1
             if any(l in wn for l in faseeh_letters) or wn.endswith(faseeh_endings):

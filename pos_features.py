@@ -30,9 +30,9 @@ def get_all_pos_tags(essays, n=100):
     bigram_counter = Counter(pos_bigrams)
     bigrams_tags = [bigram for bigram, count in bigram_counter.most_common(n)]
 
-    return np.unique(pos_tags), bigrams_tags
+    return np.unique(pos_tags), np.unique(bigrams_tags)
 
-def get_top_n_pos_tags(essays, n=100):
+def get_top_n_pos_tags(essays,_mle_disambiguator,n=100):
     """
     Get the top n POS tags from a list of essays using CAMeL Tools.
     """
@@ -53,7 +53,7 @@ def get_top_n_pos_tags(essays, n=100):
     return [tag for tag, count in pos_counter.most_common(n)]
 
 
-def get_top_n_pos_bigrams(essays, n=100):
+def get_top_n_pos_bigrams(essays,_mle_disambiguator,n=100):
     """
     Get the top n POS tag bigrams from a list of essays using CAMeL Tools.
     """
@@ -81,7 +81,7 @@ def get_top_n_pos_bigrams(essays, n=100):
     bigram_counter = Counter(pos_bigrams)
     return [bigram for bigram, count in bigram_counter.most_common(n)]
 
-def get_essay_pos_features(essay, pos_tags_list, pos_bigrams_list):
+def get_essay_pos_features(essay, pos_tags_list, pos_bigrams_list,_mle_disambiguator,n=100):
     """
     Get the POS features for an essay using a list of POS tags and POS bigrams.
     Returns counts of tags/bigrams that exist in the provided lists.

@@ -1,4 +1,4 @@
-from essay_proccessing import split_into_words, split_into_sentences
+from essay_proccessing import split_into_words, split_into_sentences, fuzzy_match
 from camel_tools_init import _morph_analyzer
 import numpy as np
 from nltk.corpus import stopwords
@@ -11,7 +11,7 @@ ARABIC_STOPWORDS = set(stopwords.words('arabic'))
 
 
 
-def calculate_lemma_features(essay):
+def calculate_lemma_features(essay,_morph_analyzer):
     """
     Calculate lemma-related features for Arabic text using CAMeL Tools morphological analyzer.
     Returns only total unique lemmas and average lemma length.
@@ -49,6 +49,7 @@ def calculate_lemma_features(essay):
     if features["total_lemmas"] > 0:
         total_length = sum(len(lemma) for lemma in lemma_types)
         features["avg_lemma_length"] = total_length / features["total_lemmas"]
+    return features
     
 def long_words_count(essay):
     """
@@ -172,7 +173,7 @@ def calculate_dup_punctuation_count(essay,_mle_disambiguator):
 
 def calculate_religious_phrases(intro_paragraph,body_paragraph,conclusion_paragraph):
     """
-    Checks for religious phrases in specific paragraphs of the essay:
+    Checks for religious phrases in specific paragraphs of the essay using fuzzy matching (93% similarity):
     - basmallah_use: First or second paragraph contains بسم الله الرحمن الرحيم
     - hamd_use: First or second paragraph contains الحمد لله رب العالمين
     - amma_baad_use: First or second paragraph contains أما بعد
@@ -181,43 +182,54 @@ def calculate_religious_phrases(intro_paragraph,body_paragraph,conclusion_paragr
     - salla_alla_mohammed_use: Last paragraph contains وصلى الله وسلم على نبينا محمد
     
     Args:
-        essay (str): The Arabic essay text
+        intro_paragraph (str): The introduction paragraph
+        body_paragraph (str): The body paragraph  
+        conclusion_paragraph (str): The conclusion paragraph
         
     Returns:
         dict: Dictionary containing boolean values for each religious phrase check
     """
+
+    
     # Split essay into paragraphs
-    paragraphs = [intro_paragraph,body_paragraph,conclusion_paragraph]
+    paragraphs = [intro_paragraph, body_paragraph, conclusion_paragraph]
     
     # Initialize result dictionary
     result = {
-        "basmallah_use": False,
-        "hamd_use": False,
-        "amma_baad_use": False,
-        "salla_allah_use": False,
-        "sallam_use": False,
+        "basmallah_use": 0,
+        "hamd_use": 0,
+        "amma_baad_use": 0,
+        "salla_allah_use": 0,
+        "sallam_use": 0,
         "salla_alla_mohammed_use": False
+    }
+    
+    # Religious phrases to search for
+    opening_phrases = {
+        "basmallah_use": "بسم الله الرحمن الرحيم",
+        "hamd_use": "الحمد لله رب العالمين", 
+        "amma_baad_use": "أما بعد",
+        "salla_allah_use": "صلى الله وبارك"
+    }
+    
+    closing_phrases = {
+        "sallam_use": "والسلام عليكم ورحمة الله وبركاته",
+        "salla_alla_mohammed_use": "وصلى الله وسلم على نبينا محمد"
     }
     
     # Check first and second paragraphs for opening phrases
     for i in range(min(2, len(paragraphs))):
         paragraph = paragraphs[i]
-        if "بسم الله الرحمن الرحيم" in paragraph:
-            result["basmallah_use"] = True
-        if "الحمد لله رب العالمين" in paragraph:
-            result["hamd_use"] = True
-        if "أما بعد" in paragraph:
-            result["amma_baad_use"] = True
-        if "صلى الله وبارك" in paragraph:
-            result["salla_allah_use"] = True
+        for key, phrase in opening_phrases.items():
+            if fuzzy_match(paragraph, phrase,0.93):
+                result[key] = 1
     
     # Check last paragraph for closing phrases
     if paragraphs:
         last_paragraph = paragraphs[-1]
-        if "والسلام عليكم ورحمة الله وبركاته" in last_paragraph:
-            result["sallam_use"] = True
-        if "وصلى الله وسلم على نبينا محمد" in last_paragraph:
-            result["salla_alla_mohammed_use"] = True
+        for key, phrase in closing_phrases.items():
+            if fuzzy_match(last_paragraph, phrase,0.93):
+                result[key] = 1
     
     return result
 
@@ -290,7 +302,7 @@ def calculate_advanced_punctuation_features(essay, _mle_disambiguator):
         words = split_into_words(sentence)
         
         # Question mark analysis
-        has_question_tool = any(tool in sentence for tool in question_tools)
+        has_question_tool = any(fuzzy_match(sentence, tool, 0.95) for tool in question_tools)
         has_question_mark = '?' in sentence
         
         if has_question_tool and has_question_mark:
@@ -301,7 +313,7 @@ def calculate_advanced_punctuation_features(essay, _mle_disambiguator):
             features["question_mark_incorrect"] += 1
             
         # Exclamation mark analysis
-        has_exaggerating_style = any(style in sentence for style in exaggerating_styles)
+        has_exaggerating_style = any(fuzzy_match(sentence, style, 0.95) for style in exaggerating_styles)
         has_exclamation_mark = '!' in sentence
         
         if has_exaggerating_style and has_exclamation_mark:
@@ -320,7 +332,7 @@ def calculate_advanced_punctuation_features(essay, _mle_disambiguator):
                     break
                     
             if next_word:
-                has_causative = (next_word in causative_indicators or 
+                has_causative = (any(fuzzy_match(next_word, indicator, 0.95) for indicator in causative_indicators) or 
                                any(next_word.startswith(prefix) for prefix in causative_prefixes))
                 if has_causative:
                     features["semicolon_correct"] += 1
@@ -329,12 +341,12 @@ def calculate_advanced_punctuation_features(essay, _mle_disambiguator):
         else:
             # Check for missing semicolon
             for i, word in enumerate(words):
-                if word in causative_indicators or any(word.startswith(prefix) for prefix in causative_prefixes):
+                if any(fuzzy_match(word, indicator, 0.95) for indicator in causative_indicators) or any(word.startswith(prefix) for prefix in causative_prefixes):
                     if i > 0 and words[i-1] != ';':
                         features["semicolon_missing"] += 1
                         
         # Colon analysis
-        has_colon_indicator = any(indicator in sentence for indicator in colon_indicators)
+        has_colon_indicator = any(fuzzy_match(sentence, indicator, 0.95) for indicator in colon_indicators)
         has_colon = ':' in sentence
         
         if has_colon_indicator and has_colon:
@@ -403,10 +415,10 @@ def calculate_advanced_punctuation_features(essay, _mle_disambiguator):
     }
         
         for connective in discourse_connectives:
-            if connective in paragraph:
+            if fuzzy_match(paragraph, connective, 0.95):
                 if ',' not in paragraph:
                     features["comma_incorrect"] += 1
-                elif ',' in paragraph and not any(word in causative_indicators for word in split_into_words(paragraph)):
+                elif ',' in paragraph and not any(fuzzy_match(word, indicator, 0.95) for word in split_into_words(paragraph) for indicator in causative_indicators):
                     features["comma_missing"] += 1
                     
     # Quotation mark analysis
@@ -461,7 +473,7 @@ def calculate_advanced_punctuation_features(essay, _mle_disambiguator):
     
     for sentence in sentences:
         # Check for explicit attribution cues
-        has_attribution = any(cue in sentence for cue in all_attribution_cues)
+        has_attribution = any(fuzzy_match(sentence, cue, 0.95) for cue in all_attribution_cues)
         
         # Check for implicit patterns (name followed by colon)
         words = split_into_words(sentence)

@@ -1,5 +1,4 @@
 from nltk.corpus import stopwords
-from camel_tools_init import _sentiment_analyzer, _bert_tokenizer, _bert_model
 from essay_proccessing import split_into_sentences
 import torch
 from transformers import pipeline
@@ -85,7 +84,7 @@ def calculate_sentiment_scores(essay):
         "negative_sentence_prop": negative_sentence_prop
     }
     
-def calculate_prompt_adherence_features(essay, prompt, model_name="CAMeL-Lab/bert-base-arabic-camelbert-mix"):
+def calculate_prompt_adherence_features(essay, prompt, _bert_tokenizer, _bert_model):
     """
     Calculates prompt adherence features using sentence embeddings with GPU acceleration.
     """
@@ -132,7 +131,7 @@ def calculate_prompt_adherence_features(essay, prompt, model_name="CAMeL-Lab/ber
     
     return features
 
-def calculate_sim(text1, text2, model_name="CAMeL-Lab/bert-base-arabic-camelbert-mix"):
+def calculate_sim(text1, text2, _bert_tokenizer, _bert_model):
     """
     Calculates semantic similarity between two texts (paragraphs or sentences) using embeddings.
     
@@ -164,7 +163,7 @@ def calculate_sim(text1, text2, model_name="CAMeL-Lab/bert-base-arabic-camelbert
     return similarity.item()
 
 
-def calculate_semantic_similarities(intro, body, conclusion):
+def calculate_semantic_similarities(intro, body, conclusion,_bert_tokenizer, _bert_model):
     """
     Calculates semantic similarities between essay parts (intro, body, conclusion) at both paragraph and sentence levels.
     
@@ -188,7 +187,7 @@ def calculate_semantic_similarities(intro, body, conclusion):
     paragraph_sim = 0.0
     for i in range(len(paragraphs)):
         for j in range(i + 1, len(paragraphs)):
-            similarity = calculate_sim(paragraphs[i], paragraphs[j])
+            similarity = calculate_sim(paragraphs[i], paragraphs[j], _bert_tokenizer, _bert_model)
             paragraph_sim = max(paragraph_sim, similarity)
     
     # Calculate sentence similarity across all sentences
@@ -197,7 +196,7 @@ def calculate_semantic_similarities(intro, body, conclusion):
     if len(all_sentences) > 1:
         for i in range(len(all_sentences)):
             for j in range(i + 1, len(all_sentences)):
-                similarity = calculate_sim(all_sentences[i], all_sentences[j])
+                similarity = calculate_sim(all_sentences[i], all_sentences[j], _bert_tokenizer, _bert_model )
                 sent_sim = max(sent_sim, similarity)
     
     return {

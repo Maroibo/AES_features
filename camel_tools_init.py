@@ -60,5 +60,10 @@ def get_tagger():
 def get_dialect_id():
     global _dialect_id
     if _dialect_id is None:
-        _dialect_id = DialectIdentifier.pretrained()
+        try:
+            # Try with explicit model name
+            _dialect_id = DialectIdentifier.pretrained('did-madar-corpus-26')
+        except:
+            # Fallback to default if that fails
+            _dialect_id = DialectIdentifier.pretrained()
     return _dialect_id

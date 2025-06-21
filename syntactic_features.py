@@ -1,7 +1,7 @@
 from nltk.corpus import stopwords
 from camel_tools_init import _mle_disambiguator, _morph_analyzer, _dialect_id
 from camel_tools.utils.normalize import normalize_unicode
-from essay_proccessing import split_into_words, split_into_sentences
+from essay_proccessing import split_into_words, split_into_sentences, get_lemmas_and_roots
 import re
 from collections import defaultdict
 import torch
@@ -14,7 +14,7 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 ARABIC_STOPWORDS = set(stopwords.words('arabic'))
 from spellchecker import SpellChecker
 
-def syllabify_arabic_word(word):
+def syllabify_arabic_word(word,_mle_disambiguator):
     """
     Syllabify an Arabic word based on the rules from Zeki et al.
     
@@ -129,15 +129,15 @@ def syllabify_arabic_word(word):
     return syllables
 
 
-def syllabify_arabic_text(essay):
+def syllabify_arabic_text(essay,_mle_disambiguator):
     """Syllabify Arabic text with or without diacritics."""
     words = split_into_words(essay)
     all_syllables = []
     for word in words:
-        all_syllables.extend(syllabify_arabic_word(word))
+        all_syllables.extend(syllabify_arabic_word(word,_mle_disambiguator))
     return all_syllables, words
 
-def calculate_syllable_features(essay):
+def calculate_syllable_features(essay,_mle_disambiguator):
     """
     Calculate syllable-related features for Arabic text including:
     - syllables: total number of syllables
@@ -146,7 +146,7 @@ def calculate_syllable_features(essay):
     - complex_words_dc: words that would be considered difficult per Dale-Chall criteria
     """
     # Get syllables and words
-    syllables, words = syllabify_arabic_text(essay)
+    syllables, words = syllabify_arabic_text(essay,_mle_disambiguator)
     # Count total syllables
     syllable_count = len(syllables)
     # Get word count
@@ -158,7 +158,7 @@ def calculate_syllable_features(essay):
     
     for i, word in enumerate(words):
         word_normalized = normalize_unicode(word.strip())
-        word_syllables = syllabify_arabic_word(word)
+        word_syllables = syllabify_arabic_word(word,_mle_disambiguator)
         syllable_count_per_word = len(word_syllables)
         # Count words that would be considered difficult per Dale-Chall criteria
         # For Arabic: Words that are not stopwords AND (have 3+ syllables OR are 6+ characters)
@@ -173,7 +173,7 @@ def calculate_syllable_features(essay):
     }
 
 
-def calculate_pronoun_features(essay):
+def calculate_pronoun_features(essay,_mle_disambiguator):
     """Extract pronoun features using CAMeL Tools with optimized processing."""
     features = {}
     pronoun_counts = defaultdict(int)
@@ -204,7 +204,7 @@ def calculate_pronoun_features(essay):
                 # gen = top_analysis.get('gen', '')
                 # num = top_analysis.get('num', '')
                 per = top_analysis.get('per', '')
-                
+                feature_key = ""
                 # # Create pronoun feature name
                 # feature_key = f"{pron_type}"
                 if per and per != 'na':
@@ -270,7 +270,7 @@ def calculate_pronoun_features(essay):
     
     return features
 
-def calculate_possessive_features(essay):
+def calculate_possessive_features(essay,_morph_analyzer):
     """Extract possessive features efficiently using CAMeL Tools."""
     features = {}
     poss_counts = defaultdict(int)
@@ -506,7 +506,7 @@ def calculate_clause_features(essay):
         "max_clause_in_s": max_clause_in_s
     }
 
-def calculate_grammar_features(essay):
+def calculate_grammar_features(essay,_mle_disambiguator):
     """Calculate grammar-related features for Arabic text."""
 
     # Initialize feature counts
@@ -686,7 +686,7 @@ def analyze_dialect_usage(text, _dialect_id):
 
 
 
-def calculate_nominal_verbal_sentences(essay):
+def calculate_nominal_verbal_sentences(essay,_mle_disambiguator):
     sentences=split_into_sentences(essay)
     nominal_sentences=0
     verbal_sentences=0
@@ -928,23 +928,16 @@ def extract_syntactic_features(essay, _mle_disambiguator):
     # Get morphological analyses
     disambiguated = _mle_disambiguator.disambiguate(words)
     
-    # counting inna words and kaana words
-    inna_words = ["أن", "إن", "كأن", "لكن", "ليت", "لعل"]
-    kana_words = ["كان", "أضحى", "مازال", "لیس", "ماظل", "أمسى", "مافتئ", "بات", "صار", "ظل", "ماانفك", "مابرح", "مادام", "أصبح"]
-
-    # Create a regex pattern to match kana words with optional و or ف before them
-    base_pattern = '|'.join(map(re.escape, kana_words))
-    pattern = re.compile(r'^[وف]?(' + base_pattern + r')(\w{0,3})?$')
-    kana_count = sum(1 for word in words if pattern.match(word))
-
-    # Create a regex pattern to match inna words with optional و or ف before them
-    base_pattern = '|'.join(map(re.escape, inna_words))
-    pattern = re.compile(r'^[وف]?(' + base_pattern + r')(\w{0,3})?$')
-    inna_count = sum(1 for word in words if pattern.match(word))
+    # Define lemma sets for more accurate matching
+    inna_lemmas = {"أن", "إن", "كأن", "لكن", "ليت", "لعل"}
+    kana_lemmas = {"كان", "أضحى", "مازال", "ليس", "ماظل", "أمسى", "مافتئ", "بات", "صار", "ظل", "ماانفك", "مابرح", "مادام", "أصبح"}
 
     # Initialize counters
     verb_count = 0
     misspelled_count = 0
+    inna_count = 0
+    kana_count = 0
+    
     spell_checker = SpellChecker(language='ar')
     # Use a set for faster lookup and only check unique words
     unique_words = set(words)
@@ -956,9 +949,20 @@ def extract_syntactic_features(essay, _mle_disambiguator):
         if word and len(word) > 0 and word.analyses:
             analysis = word.analyses[0].analysis
             pos = analysis.get('pos', '')
+            lemma = analysis.get('lex', '')
 
+            # Count verbs
             if pos.startswith('verb'):
                 verb_count += 1
+            
+            # Count Kana words using both POS and lemma
+            if pos == 'verb_pseudo' or lemma in kana_lemmas:
+                kana_count += 1
+            
+            # Count Inna words using both POS and lemma  
+            if (pos == 'part' and lemma in inna_lemmas) or lemma in inna_lemmas:
+                inna_count += 1
+    
     features = {
         "verb_count": verb_count,
         "misspelled_count": misspelled_count,
@@ -968,7 +972,7 @@ def extract_syntactic_features(essay, _mle_disambiguator):
     
     return features
 
-def extract_lexical_features(essay,intro_paragraph,body_paragraph,conclusion_paragraph):
+def extract_lexical_features(essay,intro_paragraph,body_paragraph,conclusion_paragraph,_morph_analyzer):
     
     #Count of stop words and words without stop words
     wordsList = split_into_words(essay)
@@ -979,24 +983,81 @@ def extract_lexical_features(essay,intro_paragraph,body_paragraph,conclusion_par
     intro_keywords = ['نبدأ','بداية', 'نتحدث', 'نتكلم', 'نستعرض', 'الموضوع', 'في البداية', 'أولاً', 'أود أن أبدأ ب', 'أقدم', 'أعرض']
     conclusion_keywords = ['أختم','أرى', 'أخيراً', 'أرجو', 'وجهة نظر', 'أقترح', 'أتمنى', 'في الختام', 'ختاماً', 'أختاماً', 'خلاصة', 'باختصار']
     
-    # Find the stems of the intro and conclusion keywords
-    intro_keywords_analyses = _morph_analyzer.analyze_words(intro_keywords)
-    conclusion_keywords_analyses = _morph_analyzer.analyze_words(conclusion_keywords)
-    intro_keywords_stems = [dediac_ar(analysis.analyses[0]['stem']) for analysis in intro_keywords_analyses if analysis.analyses]
-    conclusion_keywords_stems = [dediac_ar(analysis.analyses[0]['stem']) for analysis in conclusion_keywords_analyses if analysis.analyses]
-    # Find the stems of the first and last paragraphs
-    intro_analyses = _morph_analyzer.analyze_words(split_into_words(intro_paragraph))
-    conclusion_analyses = _morph_analyzer.analyze_words(split_into_words(conclusion_paragraph))
-    intro_stem = [dediac_ar(analysis.analyses[0]['stem']) for analysis in intro_analyses if analysis.analyses]
-    conclusion_stem = [dediac_ar(analysis.analyses[0]['stem']) for analysis in conclusion_analyses if analysis.analyses]
-    # Check if the paragraphs contains any of the keywords
-    first_paragraph_has_intro_words = int(any(re.search(r'\b{}\b'.format(keyword), intro_paragraph) for keyword in intro_keywords)  )
-    last_paragraph_has_conclusion_words = int(any(re.search(r'\b{}\b'.format(keyword), conclusion_paragraph) for keyword in conclusion_keywords))
-
-    # Check if the first paragraph contains any of the intro keywords stems
-    first_paragraph_has_intro_words += int(any(stem in intro_stem for stem in intro_keywords_stems))
-    # check if the last paragraph contains any of the conclusion keywords stems
-    last_paragraph_has_conclusion_words += int(any(stem in conclusion_stem for stem in conclusion_keywords_stems))
+    # Get robust representations of keywords using the imported function
+    intro_lemmas, intro_roots = get_lemmas_and_roots(intro_keywords,_morph_analyzer)
+    conclusion_lemmas, conclusion_roots = get_lemmas_and_roots(conclusion_keywords,_morph_analyzer)
+    
+    # Check introduction paragraph for intro keywords
+    first_paragraph_has_intro_words = 0
+    if intro_paragraph:
+        # Strategy 1: Direct substring matching (dediacritized)
+        dediac_intro = dediac_ar(intro_paragraph)
+        for lemma in intro_lemmas:
+            dediac_lemma = dediac_ar(lemma)
+            if dediac_lemma in dediac_intro:
+                first_paragraph_has_intro_words = 1
+                break
+        
+        # Strategy 2: Morphological analysis if no direct match found
+        if first_paragraph_has_intro_words == 0:
+            intro_words = split_into_words(intro_paragraph)
+            paragraph_lemmas = set()
+            paragraph_roots = set()
+            
+            for word in intro_words:
+                analyses = _morph_analyzer.analyze(word)
+                if analyses:
+                    lemma = analyses[0].get('lex', '')
+                    if lemma:
+                        paragraph_lemmas.add(dediac_ar(lemma))
+                        paragraph_lemmas.add(lemma)
+                    
+                    root = analyses[0].get('root', '')
+                    if root:
+                        paragraph_roots.add(dediac_ar(root))
+            
+            # Check lemma overlap
+            if intro_lemmas & paragraph_lemmas:
+                first_paragraph_has_intro_words = 1
+            # Check root overlap (more generous matching)
+            elif intro_roots & paragraph_roots:
+                first_paragraph_has_intro_words = 1
+    
+    # Check conclusion paragraph for conclusion keywords
+    last_paragraph_has_conclusion_words = 0
+    if conclusion_paragraph:
+        # Strategy 1: Direct substring matching (dediacritized)
+        dediac_conclusion = dediac_ar(conclusion_paragraph)
+        for lemma in conclusion_lemmas:
+            dediac_lemma = dediac_ar(lemma)
+            if dediac_lemma in dediac_conclusion:
+                last_paragraph_has_conclusion_words = 1
+                break
+        
+        # Strategy 2: Morphological analysis if no direct match found
+        if last_paragraph_has_conclusion_words == 0:
+            conclusion_words = split_into_words(conclusion_paragraph)
+            paragraph_lemmas = set()
+            paragraph_roots = set()
+            
+            for word in conclusion_words:
+                analyses = _morph_analyzer.analyze(word)
+                if analyses:
+                    lemma = analyses[0].get('lex', '')
+                    if lemma:
+                        paragraph_lemmas.add(dediac_ar(lemma))
+                        paragraph_lemmas.add(lemma)
+                    
+                    root = analyses[0].get('root', '')
+                    if root:
+                        paragraph_roots.add(dediac_ar(root))
+            
+            # Check lemma overlap
+            if conclusion_lemmas & paragraph_lemmas:
+                last_paragraph_has_conclusion_words = 1
+            # Check root overlap (more generous matching)
+            elif conclusion_roots & paragraph_roots:
+                last_paragraph_has_conclusion_words = 1
     
     features = {
         "stop_words_count": stop_words_count,
