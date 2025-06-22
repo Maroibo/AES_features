@@ -4,9 +4,19 @@ from camel_tools.utils.dediac import dediac_ar
 from difflib import SequenceMatcher
 from camel_tools.utils.normalize import normalize_unicode
 
+
+# Alternative approach using findall 
 def split_into_sentences(essay):
-    _SENTENCE_SPLIT_REGEX = re.compile(r'[.!?;؟،:]\s+')
-    return _SENTENCE_SPLIT_REGEX.split(essay)
+    # Option 2: Using findall to capture sentences with their punctuation
+    _SENTENCE_REGEX = re.compile(r'[^.!?;؟،:]*[.!?;؟،:]+')
+    sentences = _SENTENCE_REGEX.findall(essay)
+    # Handle any remaining text that doesn't end with punctuation
+    last_match_end = sum(len(s) for s in sentences)
+    if last_match_end < len(essay):
+        remaining = essay[last_match_end:].strip()
+        if remaining:
+            sentences.append(remaining)
+    return [sentence.strip() for sentence in sentences if sentence.strip()]
 
 def split_into_paragraphs(essay):
     # this method is just a naive implementation

@@ -233,6 +233,60 @@ def calculate_religious_phrases(intro_paragraph,body_paragraph,conclusion_paragr
     
     return result
 
+def _has_causative_prefix(word, _mle_disambiguator, causative_prefixes):
+    """
+    Check if a word has a causative prefix using CAMeL Tools morphological analysis.
+    
+    Args:
+        word (str): The Arabic word to analyze
+        _mle_disambiguator: The CAMeL Tools disambiguator
+        causative_prefixes (list): List of potential causative prefixes
+        
+    Returns:
+        bool: True if the word has a causative prefix, False otherwise
+    """
+    try:
+        # Normalize and disambiguate the word
+        normalized_word = normalize_unicode(word)
+        disambiguated = _mle_disambiguator.disambiguate(normalized_word)
+        
+        if disambiguated and len(disambiguated) > 0:
+            for disambiguated_word in disambiguated:
+                if (disambiguated_word and len(disambiguated_word) > 0 and 
+                    disambiguated_word.analyses):
+                    analysis = disambiguated_word.analyses[0].analysis
+                    
+                    # Check if there's a prefix in the analysis
+                    if 'prc0' in analysis or 'prc1' in analysis or 'prc2' in analysis or 'prc3' in analysis:
+                        # Get all prefixes
+                        prefixes = []
+                        for i in range(4):  # prc0, prc1, prc2, prc3
+                            prc_key = f'prc{i}'
+                            if prc_key in analysis and analysis[prc_key]:
+                                prefixes.append(analysis[prc_key])
+                        
+                        # Check if any of the prefixes match our causative prefixes
+                        for prefix in prefixes:
+                            if prefix in causative_prefixes:
+                                return True
+                    
+                    # Also check the base word (bw) to see if the prefix is separated
+                    if 'bw' in analysis:
+                        base_word = analysis['bw']
+                        # If the original word is longer than base word + known prefixes,
+                        # it might have a causative prefix
+                        for causative_prefix in causative_prefixes:
+                            if word.startswith(causative_prefix) and base_word:
+                                # Check if removing the prefix gives us something close to the base word
+                                word_without_prefix = word[len(causative_prefix):]
+                                if word_without_prefix and len(word_without_prefix) >= len(base_word) - 2:
+                                    return True
+        
+        return False
+    except Exception:
+        # Fallback to simple prefix check if analysis fails
+        return any(word.startswith(prefix) for prefix in causative_prefixes)
+
 def calculate_advanced_punctuation_features(essay, _mle_disambiguator):
     """
     Analyzes advanced punctuation usage in Arabic text according to specific rules.
@@ -333,7 +387,7 @@ def calculate_advanced_punctuation_features(essay, _mle_disambiguator):
                     
             if next_word:
                 has_causative = (any(fuzzy_match(next_word, indicator, 0.95) for indicator in causative_indicators) or 
-                               any(next_word.startswith(prefix) for prefix in causative_prefixes))
+                               _has_causative_prefix(next_word, _mle_disambiguator, causative_prefixes))
                 if has_causative:
                     features["semicolon_correct"] += 1
                 else:
@@ -341,7 +395,8 @@ def calculate_advanced_punctuation_features(essay, _mle_disambiguator):
         else:
             # Check for missing semicolon
             for i, word in enumerate(words):
-                if any(fuzzy_match(word, indicator, 0.95) for indicator in causative_indicators) or any(word.startswith(prefix) for prefix in causative_prefixes):
+                if (any(fuzzy_match(word, indicator, 0.95) for indicator in causative_indicators) or 
+                    _has_causative_prefix(word, _mle_disambiguator, causative_prefixes)):
                     if i > 0 and words[i-1] != ';':
                         features["semicolon_missing"] += 1
                         
