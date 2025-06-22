@@ -336,7 +336,22 @@ def calculate_advanced_punctuation_features(essay, _mle_disambiguator):
     
     # Question tools
     question_tools = ['هل', 'كيف', 'ماذا', 'لماذا', 'لم', 'كم', 'متى', 'أين']
-    question_tools_lemmas = [_mle_disambiguator.disambiguate([tool])[0].analyses[0].analysis['lex'] for tool in question_tools if _mle_disambiguator.disambiguate(tool)]
+    question_tools_lemmas = []
+    for tool in question_tools:
+        try:
+            normalized_tool = normalize_unicode(tool)
+            disambiguated = _mle_disambiguator.disambiguate(normalized_tool)
+            if disambiguated and len(disambiguated) > 0:
+                for disambiguated_word in disambiguated:
+                    if (disambiguated_word and len(disambiguated_word) > 0 and 
+                        disambiguated_word.analyses and len(disambiguated_word.analyses) > 0):
+                        analysis = disambiguated_word.analyses[0].analysis
+                        if 'lex' in analysis:
+                            question_tools_lemmas.append(analysis['lex'])
+                            break
+        except (IndexError, AttributeError, KeyError):
+            # If analysis fails, use the original tool
+            question_tools_lemmas.append(tool)
     
     # Exaggerating styles
     exaggerating_styles = ['ياليت', 'بئس', 'رائع', 'لله در']
@@ -355,7 +370,24 @@ def calculate_advanced_punctuation_features(essay, _mle_disambiguator):
     # Process each sentence
     for sentence in sentences:
         words = split_into_words(sentence)
-        lemmas = [_mle_disambiguator.disambiguate([word])[0].analyses[0].analysis['lex'] for word in words if _mle_disambiguator.disambiguate(word)]
+        
+        # Extract lemmas from words with proper error handling
+        lemmas = []
+        for word in words:
+            try:
+                normalized_word = normalize_unicode(word)
+                disambiguated = _mle_disambiguator.disambiguate(normalized_word)
+                if disambiguated and len(disambiguated) > 0:
+                    for disambiguated_word in disambiguated:
+                        if (disambiguated_word and len(disambiguated_word) > 0 and 
+                            disambiguated_word.analyses and len(disambiguated_word.analyses) > 0):
+                            analysis = disambiguated_word.analyses[0].analysis
+                            if 'lex' in analysis:
+                                lemmas.append(analysis['lex'])
+                                break
+            except (IndexError, AttributeError, KeyError):
+                # Skip words that can't be analyzed
+                continue
         
         # Question mark analysis
         # has_question_tool = any(fuzzy_match(sentence, tool, 0.99) for tool in question_tools)
@@ -555,32 +587,46 @@ def calculate_advanced_punctuation_features(essay, _mle_disambiguator):
 
 def extract_surface_features(essay,intro_paragraph,body_paragraph,conclusion_paragraph):
     #words
-    words = split_into_words(essay)
-    words_count = len(words)
-    log_words_count = math.log10(words_count)
-    unique_words = set(words)
-    unique_words_count = len(unique_words) #the set() removes duplicates
-    log_unique_words_count = math.log10(unique_words_count)
-    total_word_length = sum(len(word) for word in unique_words)#for unique words
-    average_word_length = total_word_length / unique_words_count if unique_words_count > 0 else 0
-    max_length_word = max(len(word) for word in unique_words)
-    min_length_word = min(len(word) for word in unique_words)
-    squared_diffs_words = [(len(word) - average_word_length) ** 2 for word in unique_words]
-    mean_squared_diffs_words = sum(squared_diffs_words) / len(squared_diffs_words)
-    standard_deviation_words= math.sqrt(mean_squared_diffs_words) #the standard deviation as a way to understand how much individual values within a group differ from the average value of that group
+    if essay.strip() != '':
+        words = split_into_words(essay)
+        words_count = len(words)
+        log_words_count = math.log10(words_count)
+        unique_words = set(words)
+        unique_words_count = len(unique_words) #the set() removes duplicates
+        log_unique_words_count = math.log10(unique_words_count)
+        total_word_length = sum(len(word) for word in unique_words)#for unique words
+        average_word_length = total_word_length / unique_words_count if unique_words_count > 0 else 0
+        max_length_word = max(len(word) for word in unique_words)
+        min_length_word = min(len(word) for word in unique_words)
+        squared_diffs_words = [(len(word) - average_word_length) ** 2 for word in unique_words]
+        mean_squared_diffs_words = sum(squared_diffs_words) / len(squared_diffs_words)
+        standard_deviation_words= math.sqrt(mean_squared_diffs_words) #the standard deviation as a way to understand how much individual values within a group differ from the average value of that group
 
-    #General counts
-    chars_count = len(essay.replace(" ", "")) #not counting spaces
-    hmpz_count = len(re.findall(r'[أإءؤئ]', essay))# Number of <hmzp> (F22)
-    
-    #Paragraphs
-    paragraphs = [p for p in [intro_paragraph, body_paragraph, conclusion_paragraph] if p.strip() != '']
-    paragraphs_count =len(paragraphs)  #num_paragraphs = len(essay.split('\n')) #Number of paragraphs (F3)
-    is_first_paragraph_less_than_or_equal_to_10 = int(len(split_into_words(paragraphs[0])) <= 10 )#(F16)
-    paragraphs_lengths = [len(split_into_words(paragraph)) for paragraph in paragraphs] #length of each paragraph interms of words
-    average_length_paragraph = sum(paragraphs_lengths)/ paragraphs_count# Average length of paragraph (F11)
-    max_length_paragraph = max(paragraphs_lengths) # Maximum length of paragraph (F12)
-    min_length_paragraph = min(paragraphs_lengths) # Minimum length of paragraph (F13)
+        #General counts
+        chars_count = len(essay.replace(" ", "")) #not counting spaces
+        hmpz_count = len(re.findall(r'[أإءؤئ]', essay))# Number of <hmzp> (F22)
+    else:
+        words_count = 0
+        log_words_count = 0
+        unique_words_count = 0
+        log_unique_words_count = 0
+        average_word_length = 0
+        max_length_word = 0
+        min_length_word = 0
+        standard_deviation_words = 0
+        chars_count = 0
+        hmpz_count = 0
+        
+
+    if intro_paragraph.strip() != '' or body_paragraph.strip() != '' or conclusion_paragraph.strip() != '':
+        #Paragraphs
+        paragraphs = [p for p in [intro_paragraph, body_paragraph, conclusion_paragraph] if p.strip() != '']
+        paragraphs_count =len(paragraphs)  #num_paragraphs = len(essay.split('\n')) #Number of paragraphs (F3)
+        is_first_paragraph_less_than_or_equal_to_10 = int(len(split_into_words(paragraphs[0])) <= 10 )#(F16)
+        paragraphs_lengths = [len(split_into_words(paragraph)) for paragraph in paragraphs] #length of each paragraph interms of words
+        average_length_paragraph = sum(paragraphs_lengths)/ paragraphs_count# Average length of paragraph (F11)
+        max_length_paragraph = max(paragraphs_lengths) # Maximum length of paragraph (F12)
+        min_length_paragraph = min(paragraphs_lengths) # Minimum length of paragraph (F13)
     #Sentences
     sentences = split_into_sentences(essay)
     sentences_count = len(sentences) # Number of sentences (F5)
@@ -593,34 +639,56 @@ def extract_surface_features(essay,intro_paragraph,body_paragraph,conclusion_par
     standard_deviation_sentence = np.sqrt(mean_squared_diff_sentence)   
     
     #Grouping the features into a list
-    extracted_surface_features= [words_count,log_words_count,unique_words_count,log_unique_words_count,
-    average_word_length,max_length_word,min_length_word,standard_deviation_words,chars_count,hmpz_count, 
-    paragraphs_count,is_first_paragraph_less_than_or_equal_to_10,average_length_paragraph,
-    max_length_paragraph, min_length_paragraph, sentences_count, average_length_sentence,
-    max_length_sentence, min_length_sentence,standard_deviation_sentence]
 
-    features = {
-        "words_count": words_count,
-        "log_words_count": log_words_count,
-        "unique_words_count": unique_words_count,
-        "log_unique_words_count": log_unique_words_count,
-        "average_word_length": average_word_length,
-        "max_length_word": max_length_word,
-        "min_length_word": min_length_word,
-        "standard_deviation_words": standard_deviation_words,
-        "chars_count": chars_count,
-        "hmpz_count": hmpz_count,
-        "paragraphs_count": paragraphs_count,
-        "is_first_paragraph_less_than_or_equal_to_10": is_first_paragraph_less_than_or_equal_to_10,
-        "average_length_paragraph": average_length_paragraph,
-        "max_length_paragraph": max_length_paragraph,
-        "min_length_paragraph": min_length_paragraph,
-        "sentences_count": sentences_count,
-        "average_length_sentence": average_length_sentence,
-        "max_length_sentence": max_length_sentence,
-        "min_length_sentence": min_length_sentence,
-        "standard_deviation_sentence": standard_deviation_sentence
-    }
+    if intro_paragraph.strip() != '' or body_paragraph.strip() != '' or conclusion_paragraph.strip() != '':
+        extracted_surface_features= [words_count,log_words_count,unique_words_count,log_unique_words_count,
+        average_word_length,max_length_word,min_length_word,standard_deviation_words,chars_count,hmpz_count, 
+        paragraphs_count,is_first_paragraph_less_than_or_equal_to_10,average_length_paragraph,
+        max_length_paragraph, min_length_paragraph, sentences_count, average_length_sentence,
+        max_length_sentence, min_length_sentence,standard_deviation_sentence] 
+        features = {
+            "words_count": words_count,
+            "log_words_count": log_words_count,
+            "unique_words_count": unique_words_count,
+            "log_unique_words_count": log_unique_words_count,
+            "average_word_length": average_word_length,
+            "max_length_word": max_length_word,
+            "min_length_word": min_length_word,
+            "standard_deviation_words": standard_deviation_words,
+            "chars_count": chars_count,
+            "hmpz_count": hmpz_count,
+            "paragraphs_count": paragraphs_count,
+            "is_first_paragraph_less_than_or_equal_to_10": is_first_paragraph_less_than_or_equal_to_10,
+            "average_length_paragraph": average_length_paragraph,
+            "max_length_paragraph": max_length_paragraph,
+            "min_length_paragraph": min_length_paragraph,
+            "sentences_count": sentences_count,
+            "average_length_sentence": average_length_sentence,
+            "max_length_sentence": max_length_sentence,
+            "min_length_sentence": min_length_sentence,
+            "standard_deviation_sentence": standard_deviation_sentence
+        }
+    else:
+        extracted_surface_features= [words_count,log_words_count,unique_words_count,log_unique_words_count,
+        average_word_length,max_length_word,min_length_word,standard_deviation_words,chars_count,hmpz_count, 
+        sentences_count, average_length_sentence,max_length_sentence, min_length_sentence,standard_deviation_sentence] 
+        features = {
+            "words_count": words_count,
+            "log_words_count": log_words_count,
+            "unique_words_count": unique_words_count,
+            "log_unique_words_count": log_unique_words_count,
+            "average_word_length": average_word_length,
+            "max_length_word": max_length_word,
+            "min_length_word": min_length_word,
+            "standard_deviation_words": standard_deviation_words,
+            "chars_count": chars_count,
+            "hmpz_count": hmpz_count,
+            "sentences_count": sentences_count,
+            "average_length_sentence": average_length_sentence,
+            "max_length_sentence": max_length_sentence,
+            "min_length_sentence": min_length_sentence,
+            "standard_deviation_sentence": standard_deviation_sentence
+        }
     
     return features
 

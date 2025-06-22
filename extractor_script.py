@@ -6,7 +6,10 @@ from essay_proccessing import split_into_sentences, split_into_paragraphs
 from pos_features import get_top_n_pos_tags,get_top_n_pos_bigrams,get_essay_pos_features
 from readability_measures import calculate_readability_scores
 from semantic_features import calculate_prompt_adherence_features,calculate_sentiment_scores,calculate_semantic_similarities,calculate_sent_match_words
-from surface_level_features import calculate_religious_phrases,calculate_advanced_punctuation_features,extract_surface_features,calculate_lemma_features,calculate_variance_features,long_words_count,calculate_punctuation_counts,calculate_dup_punctuation_count
+from surface_level_features import (calculate_religious_phrases,
+    calculate_advanced_punctuation_features,extract_surface_features,
+    calculate_lemma_features,calculate_variance_features,long_words_count,
+    calculate_punctuation_counts,calculate_dup_punctuation_count,long_words_count)
 from syntactic_features import (count_jazm_particles,analyze_dialect_usage,
     calculate_syllable_features,calculate_pronoun_features,
     calculate_possessive_features,calculate_grammar_features,
@@ -108,6 +111,23 @@ def main():
         top_n_word_features=calculate_top_n_word_features(essay,total_word_counts,100)
         jazm_features=count_jazm_particles(essay,_morph_analyzer)
 
+        # paragraph features
+        intro_paragraph_features=extract_surface_features(intro_paragraph,"","","")
+        # add intro paragraph to the key of every feature
+        intro_paragraph_features={f"intro_{k}": v for k, v in intro_paragraph_features.items()}
+        body_paragraph_features=extract_surface_features(body_paragraph,"","","")
+        body_paragraph_features={f"body_{k}": v for k, v in body_paragraph_features.items()}
+        conclusion_paragraph_features=extract_surface_features(conclusion_paragraph,"","","")
+        conclusion_paragraph_features={f"conclusion_{k}": v for k, v in conclusion_paragraph_features.items()}
+        intro_paragraph_punctuation_features=calculate_punctuation_counts(intro_paragraph,_mle_disambiguator)
+        intro_paragraph_punctuation_features={f"intro_{k}": v for k, v in intro_paragraph_punctuation_features.items()}
+        body_paragraph_punctuation_features=calculate_punctuation_counts(body_paragraph,_mle_disambiguator)
+        body_paragraph_punctuation_features={f"body_{k}": v for k, v in body_paragraph_punctuation_features.items()}
+        conclusion_paragraph_punctuation_features=calculate_punctuation_counts(conclusion_paragraph,_mle_disambiguator)
+        conclusion_paragraph_punctuation_features={f"conclusion_{k}": v for k, v in conclusion_paragraph_punctuation_features.items()}
+
+        
+
         features_df=pd.concat([features_df,pd.DataFrame({
             'essay_id':id,
             'longest_paragraph_length':longest_paragaph_length,
@@ -148,6 +168,12 @@ def main():
             **lexical_features,
             **top_n_word_features,
             **jazm_features,
+            **intro_paragraph_features,
+            **body_paragraph_features,
+            **conclusion_paragraph_features,
+            **intro_paragraph_punctuation_features,
+            **body_paragraph_punctuation_features,
+            **conclusion_paragraph_punctuation_features,
         },index=[0])], ignore_index=True)
     
     print("\nFeature extraction completed!")
