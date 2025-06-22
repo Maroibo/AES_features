@@ -135,14 +135,14 @@ def calculate_punctuation_counts(essay,_mle_disambiguator):
 
     return {
         "exclamation_count": essay.count('!'),
-        "semicolon_count": essay.count(';'),
+        "semicolon_count": essay.count(';') + essay.count('؛'),
         "dash_count": essay.count('-'),
         "colon_count": essay.count(':'),
-        "question_count": essay.count('?'),
+        "question_count": essay.count('?') + essay.count('؟'),
         "period_count": essay.count('.'),
-        "comma_count": essay.count(','),
-        "quotation_mark_count": essay.count('"'),
-        "parenthesis_count": essay.count('('),
+        "comma_count": essay.count(',') + essay.count('،'),
+        "quotation_mark_count": essay.count('"') + essay.count('“') + essay.count('”'),
+        "parenthesis_count": essay.count('(') + essay.count(')'),
         "punc_count": punc_count
     }
 
@@ -206,14 +206,14 @@ def calculate_religious_phrases(intro_paragraph,body_paragraph,conclusion_paragr
     
     # Religious phrases to search for
     opening_phrases = {
-        "basmallah_use": "بسم الله الرحمن الرحيم",
-        "hamd_use": "الحمد لله رب العالمين", 
+        "basmallah_use": "بسم الله",
+        "hamd_use": "الحمد لله", 
         "amma_baad_use": "أما بعد",
-        "salla_allah_use": "صلى الله وبارك"
+        "salla_allah_use": "صلى الله"
     }
     
     closing_phrases = {
-        "sallam_use": "والسلام عليكم ورحمة الله وبركاته",
+        "sallam_use": "والسلام عليكم",
         "salla_alla_mohammed_use": "وصلى الله وسلم على نبينا محمد"
     }
     
@@ -570,7 +570,7 @@ def extract_surface_features(essay,intro_paragraph,body_paragraph,conclusion_par
     hmpz_count = len(re.findall(r'[أإءؤئ]', essay))# Number of <hmzp> (F22)
     
     #Paragraphs
-    paragraphs = [intro_paragraph,body_paragraph,conclusion_paragraph]
+    paragraphs = [p for p in [intro_paragraph, body_paragraph, conclusion_paragraph] if p.strip() != '']
     paragraphs_count =len(paragraphs)  #num_paragraphs = len(essay.split('\n')) #Number of paragraphs (F3)
     is_first_paragraph_less_than_or_equal_to_10 = int(len(split_into_words(paragraphs[0])) <= 10 )#(F16)
     paragraphs_lengths = [len(split_into_words(paragraph)) for paragraph in paragraphs] #length of each paragraph interms of words
