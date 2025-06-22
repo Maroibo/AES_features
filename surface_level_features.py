@@ -627,16 +627,23 @@ def extract_surface_features(essay,intro_paragraph,body_paragraph,conclusion_par
         average_length_paragraph = sum(paragraphs_lengths)/ paragraphs_count# Average length of paragraph (F11)
         max_length_paragraph = max(paragraphs_lengths) # Maximum length of paragraph (F12)
         min_length_paragraph = min(paragraphs_lengths) # Minimum length of paragraph (F13)
-    #Sentences
-    sentences = split_into_sentences(essay)
-    sentences_count = len(sentences) # Number of sentences (F5)
-    sentence_lengths = [len(split_into_words(sentence)) for sentence in sentences]
-    average_length_sentence = sum(sentence_lengths) / sentences_count    # Average length of sentence (F10)
-    max_length_sentence = max(sentence_lengths) # Maximum length of sentence 
-    min_length_sentence = min(sentence_lengths)# Minimum length of sentence 
-    squared_diff_sentence = [(length - average_length_sentence) ** 2 for length in sentence_lengths]
-    mean_squared_diff_sentence = np.mean(squared_diff_sentence)
-    standard_deviation_sentence = np.sqrt(mean_squared_diff_sentence)   
+    if essay.strip() != '':
+        #Sentences
+        sentences = split_into_sentences(essay)
+        sentences_count = len(sentences) # Number of sentences (F5)
+        sentence_lengths = [len(split_into_words(sentence)) for sentence in sentences]
+        average_length_sentence = sum(sentence_lengths) / sentences_count    # Average length of sentence (F10)
+        max_length_sentence = max(sentence_lengths) # Maximum length of sentence 
+        min_length_sentence = min(sentence_lengths)# Minimum length of sentence 
+        squared_diff_sentence = [(length - average_length_sentence) ** 2 for length in sentence_lengths]
+        mean_squared_diff_sentence = np.mean(squared_diff_sentence)
+        standard_deviation_sentence = np.sqrt(mean_squared_diff_sentence)  
+    else:
+        sentences_count = 0
+        average_length_sentence = 0
+        max_length_sentence = 0
+        min_length_sentence = 0
+        standard_deviation_sentence = 0
     
     #Grouping the features into a list
 
