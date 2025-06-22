@@ -62,12 +62,16 @@ def main():
         intro_paragraph=paragraphs_df[paragraphs_df['essay_id']==id]['introduction'].values[0]
         body_paragraph=paragraphs_df[paragraphs_df['essay_id']==id]['body'].values[0]
         conclusion_paragraph=paragraphs_df[paragraphs_df['essay_id']==id]['conclusion'].values[0]
+        n_paragraphs = 3
         if intro_paragraph is np.nan:
             intro_paragraph=''
+            n_paragraphs -= 1
         if body_paragraph is np.nan:
             body_paragraph=''
+            n_paragraphs -= 1
         if conclusion_paragraph is np.nan:
             conclusion_paragraph=''
+            n_paragraphs -= 1
         longest_paragaph_length=max(len(intro_paragraph),len(body_paragraph),len(conclusion_paragraph))
         shortest_paragaph_length=min(len(intro_paragraph),len(body_paragraph),len(conclusion_paragraph))
         # Surface level features
@@ -109,13 +113,13 @@ def main():
             'shortest_paragaph_length':shortest_paragaph_length,
             'longest_paragaph_length_ratio':longest_paragaph_length/shortest_paragaph_length if shortest_paragaph_length!=0 else 0,
             'shortest_paragaph_length_ratio':shortest_paragaph_length/longest_paragaph_length if longest_paragaph_length!=0 else 0,
-            'no_of _words_in_first':len(normalize_unicode(intro_paragraph).split()),
-            'no_of _words_in_body':len(normalize_unicode(body_paragraph).split()),
-            'no_of _words_in_conclusion':len(normalize_unicode(conclusion_paragraph).split()),
-            'more_than_1_paragraph': 1 if essay.count('\n')>1 else 0,
+            'no_of_words_in_first':len(normalize_unicode(intro_paragraph).split()),
+            'no_of_words_in_body':len(normalize_unicode(body_paragraph).split()),
+            'no_of_words_in_conclusion':len(normalize_unicode(conclusion_paragraph).split()),
+            'more_than_1_paragraph': 1 if n_paragraphs > 1 else 0,
             'colon_exists': 1 if ':' in essay else 0,
             'paranthesis_exists': 1 if '(' in essay else 0,
-            'question_mark_exists': 1 if '?' in essay else 0,
+            'question_mark_exists': 1 if ('?' in essay or '؟' in essay) else 0,
             **pos_features,
             **readability_features,
             **semantic_features,
