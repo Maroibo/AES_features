@@ -109,10 +109,10 @@ def main():
 
         features_df=pd.concat([features_df,pd.DataFrame({
             'essay_id':id,
-            'longest_paragaph_length':longest_paragaph_length,
-            'shortest_paragaph_length':shortest_paragaph_length,
-            'longest_paragaph_length_ratio':longest_paragaph_length/shortest_paragaph_length if shortest_paragaph_length!=0 else 0,
-            'shortest_paragaph_length_ratio':shortest_paragaph_length/longest_paragaph_length if longest_paragaph_length!=0 else 0,
+            'longest_paragraph_length':longest_paragaph_length,
+            'shortest_paragraph_length':shortest_paragaph_length,
+            'longest_paragraph_length_ratio':longest_paragaph_length/shortest_paragaph_length if shortest_paragaph_length!=0 else 0,
+            'shortest_paragraph_length_ratio':shortest_paragaph_length/longest_paragaph_length if longest_paragaph_length!=0 else 0,
             'no_of_words_in_first':len(normalize_unicode(intro_paragraph).split()),
             'no_of_words_in_body':len(normalize_unicode(body_paragraph).split()),
             'no_of_words_in_conclusion':len(normalize_unicode(conclusion_paragraph).split()),
