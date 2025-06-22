@@ -336,6 +336,7 @@ def calculate_advanced_punctuation_features(essay, _mle_disambiguator):
     
     # Question tools
     question_tools = ['هل', 'كيف', 'ماذا', 'لماذا', 'لم', 'كم', 'متى', 'أين']
+    question_tools_lemmas = [_mle_disambiguator.disambiguate([tool])[0].analyses[0].analysis['lex'] for tool in question_tools if _mle_disambiguator.disambiguate(tool)]
     
     # Exaggerating styles
     exaggerating_styles = ['ياليت', 'بئس', 'رائع', 'لله در']
@@ -345,7 +346,7 @@ def calculate_advanced_punctuation_features(essay, _mle_disambiguator):
     causative_prefixes = ['ل', 'ف']
     
     # Colon indicators
-    colon_indicators = ['مثال', 'التالية', 'الآتية', 'مايلي']
+    colon_indicators = ['مثال', 'التالية', 'الآتية', 'مايلي','قال']
     
     # Split into sentences and paragraphs
     sentences = split_into_sentences(essay)
@@ -354,10 +355,13 @@ def calculate_advanced_punctuation_features(essay, _mle_disambiguator):
     # Process each sentence
     for sentence in sentences:
         words = split_into_words(sentence)
+        lemmas = [_mle_disambiguator.disambiguate([word])[0].analyses[0].analysis['lex'] for word in words if _mle_disambiguator.disambiguate(word)]
         
         # Question mark analysis
-        has_question_tool = any(fuzzy_match(sentence, tool, 0.95) for tool in question_tools)
-        has_question_mark = '?' in sentence
+        # has_question_tool = any(fuzzy_match(sentence, tool, 0.99) for tool in question_tools)
+        # Exact match for question mark between words and question_tools
+        has_question_tool = any([tool==word for word in lemmas for tool in question_tools_lemmas])
+        has_question_mark = '?' in sentence or '؟' in sentence
         
         if has_question_tool and has_question_mark:
             features["question_mark_correct"] += 1
@@ -378,10 +382,10 @@ def calculate_advanced_punctuation_features(essay, _mle_disambiguator):
             features["exclamation_mark_incorrect"] += 1
             
         # Semicolon analysis
-        if ';' in sentence:
+        if ';' in sentence or '؛' in sentence:
             next_word = None
             for i, word in enumerate(words):
-                if word == ';' and i + 1 < len(words):
+                if (word == ';' or word == '؛') and i + 1 < len(words):
                     next_word = words[i + 1]
                     break
                     
@@ -397,7 +401,7 @@ def calculate_advanced_punctuation_features(essay, _mle_disambiguator):
             for i, word in enumerate(words):
                 if (any(fuzzy_match(word, indicator, 0.95) for indicator in causative_indicators) or 
                     _has_causative_prefix(word, _mle_disambiguator, causative_prefixes)):
-                    if i > 0 and words[i-1] != ';':
+                    if i > 0 and words[i-1] != ';' and words[i-1] != '؛':
                         features["semicolon_missing"] += 1
                         
         # Colon analysis
