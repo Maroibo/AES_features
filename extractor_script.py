@@ -5,7 +5,7 @@ from camel_tools_init import (get_disambiguator, get_analyzer, get_sentiment_ana
 from essay_proccessing import split_into_sentences, split_into_paragraphs
 from pos_features import get_top_n_pos_tags,get_top_n_pos_bigrams,get_essay_pos_features
 from readability_measures import calculate_readability_scores
-from semantic_features import calculate_prompt_adherence_features,calculate_sentiment_scores,calculate_semantic_similarities
+from semantic_features import calculate_prompt_adherence_features,calculate_sentiment_scores,calculate_semantic_similarities,calculate_sent_match_words
 from surface_level_features import calculate_religious_phrases,calculate_advanced_punctuation_features,extract_surface_features,calculate_lemma_features,calculate_variance_features,long_words_count,calculate_punctuation_counts,calculate_dup_punctuation_count
 from syntactic_features import (count_jazm_particles,analyze_dialect_usage,
     calculate_syllable_features,calculate_pronoun_features,
@@ -88,6 +88,7 @@ def main():
         # Semantic features
         semantic_features=calculate_semantic_similarities(intro_paragraph,body_paragraph,conclusion_paragraph,_bert_tokenizer, _bert_model)
         sentiment_features=calculate_sentiment_scores(essay)
+        sent_match_words_features=calculate_sent_match_words(essay)
         prompt_adherence_features=calculate_prompt_adherence_features(essay,prompt,_bert_tokenizer, _bert_model)
         # syntax features
         dialect_features=analyze_dialect_usage(essay,_dialect_id)
@@ -120,6 +121,7 @@ def main():
             **readability_features,
             **semantic_features,
             **sentiment_features,
+            **sent_match_words_features,
             **prompt_adherence_features,
             **dialect_features,
             **surface_features,

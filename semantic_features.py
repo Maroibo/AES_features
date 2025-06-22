@@ -84,6 +84,24 @@ def calculate_sentiment_scores(essay):
         "negative_sentence_prop": negative_sentence_prop
     }
     
+def calculate_sent_match_words(essay):
+    """
+    Calculates the number of max and the average number words matched between the sentences in the essay
+    """
+    sentences = split_into_sentences(essay)
+    max_matched_words = 0
+    avg_matched_words = 0
+    for i in range(len(sentences)):
+        for j in range(i + 1, len(sentences)):
+            matched_words = len(set(sentences[i].split()) & set(sentences[j].split()))
+            max_matched_words = max(max_matched_words, matched_words)
+            avg_matched_words += matched_words
+    avg_matched_words /= len(sentences)
+    return {
+        "max_matched_words": max_matched_words,
+        "avg_matched_words": avg_matched_words
+    }
+
 def calculate_prompt_adherence_features(essay, prompt, _bert_tokenizer, _bert_model):
     """
     Calculates prompt adherence features using sentence embeddings with GPU acceleration.
@@ -174,8 +192,10 @@ def calculate_semantic_similarities(intro, body, conclusion,_bert_tokenizer, _be
         
     Returns:
         dict: Dictionary containing:
-            - paragraph_sim: Maximum similarity between any two paragraphs (intro, body, conclusion)
-            - sent_sim: Maximum similarity between any two sentences across all paragraphs
+            - max_paragraph_sim: Maximum similarity between any two paragraphs (intro, body, conclusion)
+            - avg_paragraph_sim: Average similarity between all paragraph pairs
+            - max_sent_sim: Maximum similarity between any two sentences across all paragraphs
+            - avg_sent_sim: Average similarity between all sentence pairs
     """
     # Get all sentences from each part
     intro_sentences = split_into_sentences(intro)
@@ -184,24 +204,32 @@ def calculate_semantic_similarities(intro, body, conclusion,_bert_tokenizer, _be
     
     # Calculate paragraph similarity
     paragraphs = [intro, body, conclusion]
-    paragraph_sim = 0.0
+    paragraph_similarities = []
     for i in range(len(paragraphs)):
         for j in range(i + 1, len(paragraphs)):
             similarity = calculate_sim(paragraphs[i], paragraphs[j], _bert_tokenizer, _bert_model)
-            paragraph_sim = max(paragraph_sim, similarity)
+            paragraph_similarities.append(similarity)
+    
+    max_paragraph_sim = max(paragraph_similarities) if paragraph_similarities else 0.0
+    avg_paragraph_sim = sum(paragraph_similarities) / len(paragraph_similarities) if paragraph_similarities else 0.0
     
     # Calculate sentence similarity across all sentences
     all_sentences = intro_sentences + body_sentences + conclusion_sentences
-    sent_sim = 0.0
+    sentence_similarities = []
     if len(all_sentences) > 1:
         for i in range(len(all_sentences)):
             for j in range(i + 1, len(all_sentences)):
                 similarity = calculate_sim(all_sentences[i], all_sentences[j], _bert_tokenizer, _bert_model )
-                sent_sim = max(sent_sim, similarity)
+                sentence_similarities.append(similarity)
+    
+    max_sent_sim = max(sentence_similarities) if sentence_similarities else 0.0
+    avg_sent_sim = sum(sentence_similarities) / len(sentence_similarities) if sentence_similarities else 0.0
     
     return {
-        "paragraph_sim": paragraph_sim,
-        "sent_sim": sent_sim
+        "max_paragraph_sim": max_paragraph_sim,
+        "avg_paragraph_sim": avg_paragraph_sim,
+        "max_sent_sim": max_sent_sim,
+        "avg_sent_sim": avg_sent_sim
     }
 
 
