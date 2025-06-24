@@ -29,7 +29,10 @@ def syllabify_arabic_word(word,_mle_disambiguator):
     sukoon = "ْ"  # sukoon marks absence of vowel
     shadda = "ّ"  # gemination mark (doubles consonant)
     
-    diacritized_word = _mle_disambiguator.disambiguate([word])[0].analyses[0].analysis['diac']
+    if _mle_disambiguator.disambiguate([word])[0].analyses and len(_mle_disambiguator.disambiguate([word])[0].analyses) > 0:
+        diacritized_word = _mle_disambiguator.disambiguate([word])[0].analyses[0].analysis['diac']
+    else:
+        diacritized_word = word
     word = diacritized_word
 
     # If last character is a dicaritic, remove it and replace with sukoon
@@ -194,7 +197,10 @@ def calculate_pronoun_features(essay,_mle_disambiguator):
         # Process each word analysis
         for word_idx, analysis in enumerate(analyses):
             # Get the top analysis
-            top_analysis = analysis.analyses[0].analysis
+            if analysis and len(analysis.analyses) > 0:
+                top_analysis = analysis.analyses[0].analysis
+            else:
+                top_analysis = {}
             pos = top_analysis.get('pos', '')
             # Check for pronouns using CAMeL Tools POS tags
             # if pos == 'pron' or pos == 'pron_dem':

@@ -104,7 +104,10 @@ def get_essay_pos_features(essay, pos_tags_list, pos_bigrams_list,_mle_disambigu
         # Extract POS tags for this sentence
         for disambiguated_word in disambiguated:
             if disambiguated_word and len(disambiguated_word) > 0 and disambiguated_word.analyses:
-                analysis = disambiguated_word.analyses[0].analysis
+                if disambiguated_word.analyses and len(disambiguated_word.analyses) > 0:
+                    analysis = disambiguated_word.analyses[0].analysis
+                else:
+                    analysis = {}
                 if 'pos' in analysis:
                     sentence_pos_tags.append(analysis['pos'])
         

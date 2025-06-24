@@ -644,6 +644,7 @@ def extract_surface_features(essay,intro_paragraph,body_paragraph,conclusion_par
         max_length_sentence = 0
         min_length_sentence = 0
         standard_deviation_sentence = 0
+
     
     #Grouping the features into a list
 

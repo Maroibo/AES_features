@@ -56,21 +56,38 @@ class ClauseAnalyzer:
         self.disambiguator_type = "mle"
         self.morphology_db_type = "r13"
         
+        # Initialize the parser components once
+        self._initialize_parser()
+        
+    def _initialize_parser(self):
+        """
+        Initialize the parser components once to avoid reinitialization.
+        """
+        # Create a dummy TextParams to initialize the parsing components
+        dummy_sentences = ["تجربة"]  # Simple test sentence
+        self.text_params = TextParams(
+            dummy_sentences,
+            self.model_path / self.model_name,
+            self.arclean,
+            self.disambiguator_type,
+            self.clitic_feats_df,
+            self.tagset,
+            self.morphology_db_type
+        )
+        # Parse once to initialize all components
+        try:
+            parse_text("text", self.text_params)
+        except Exception:
+            pass  # Silently handle initialization errors
+        
     def parse_sentences(self, sentences):
         """
-        Parses a list of sentences using the configured CamelParser.
+        Parses a list of sentences using the pre-initialized CamelParser.
         """
         try:
-            file_type_params = TextParams(
-                sentences, 
-                self.model_path / self.model_name, 
-                self.arclean, 
-                self.disambiguator_type, 
-                self.clitic_feats_df, 
-                self.tagset, 
-                self.morphology_db_type
-            )
-            return parse_text("text", file_type_params)
+            # Reuse the initialized text_params but update the sentences
+            self.text_params.lines = sentences
+            return parse_text("text", self.text_params)
         except Exception:
             # Silently fail on parsing error
             return []

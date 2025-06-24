@@ -16,7 +16,7 @@ from syntactic_features import (count_jazm_particles,analyze_dialect_usage,
     calculate_nominal_verbal_sentences,count_conjunctions_and_transitions,
     extract_syntactic_features,extract_lexical_features,
     get_top_n_words_from_essays,calculate_top_n_word_features)
-# from clause_features import ClauseAnalyzer
+from clause_features import ClauseAnalyzer
 import pandas as pd
 from camel_tools.utils.normalize import normalize_unicode
 import numpy as np
@@ -80,7 +80,6 @@ def main():
         # Surface level features
         surface_features=extract_surface_features(essay,intro_paragraph,body_paragraph,conclusion_paragraph)
         religious_features=calculate_religious_phrases(intro_paragraph,body_paragraph,conclusion_paragraph)
-        punctuation_features=calculate_advanced_punctuation_features(essay,_mle_disambiguator)
         lemma_features=calculate_lemma_features(essay,_morph_analyzer)
         variance_features=calculate_variance_features(essay)
         long_words_features={"long_words_count": long_words_count(essay)}
@@ -130,6 +129,17 @@ def main():
 
         features_df=pd.concat([features_df,pd.DataFrame({
             'essay_id':id,
+            'essay_set':row['essay_set'],
+            'essay':essay,
+            'prompt':prompt,
+            'relevance':row['relevance'],
+            'organization':row['organization'],
+            'vocabulary':row['vocabulary'],
+            'style':row['style'],
+            'development':row['development'],
+            'mechanics':row['mechanics'],
+            'grammar':row['grammar'],
+            'holistic':row['holistic'],
             'longest_paragraph_length':longest_paragaph_length,
             'shortest_paragraph_length':shortest_paragaph_length,
             'longest_paragraph_length_ratio':longest_paragaph_length/shortest_paragaph_length if shortest_paragaph_length!=0 else 0,
@@ -150,7 +160,6 @@ def main():
             **dialect_features,
             **surface_features,
             **religious_features,
-            **punctuation_features,
             **lemma_features,
             **variance_features,
             **long_words_features,
