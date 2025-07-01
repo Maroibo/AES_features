@@ -29,6 +29,55 @@ def get_category_colors():
         'Syntactic features': '#9467bd'      # Purple
     }
 
+def get_fixed_category_order():
+    """Define fixed order for main categories (consistent across all charts)"""
+    return [
+        'Surface features',
+        'Lexical features', 
+        'Readability measures',
+        'Semantic features',
+        'Syntactic features'
+    ]
+
+def calculate_global_subcategory_rankings(categorization, target_columns):
+    """Calculate global ranking of all subcategories across all target columns"""
+    all_subcategory_scores = {}
+    
+    for target_col in target_columns:
+        csv_path = f"../output/whole_dataset/{target_col}_whole_data_set_correlations.csv"
+        
+        if not os.path.exists(csv_path):
+            continue
+        
+        # Read correlation data
+        df = pd.read_csv(csv_path)
+        
+        # Aggregate correlations by subcategory
+        subcategory_df = aggregate_correlations_by_subcategory(df, categorization, 'mean')
+        
+        for _, row in subcategory_df.iterrows():
+            subcategory = row['subcategory']
+            correlation = row['correlation']
+            
+            if subcategory not in all_subcategory_scores:
+                all_subcategory_scores[subcategory] = []
+            all_subcategory_scores[subcategory].append(correlation)
+    
+    # Calculate mean correlation for each subcategory across all target columns
+    subcategory_means = {}
+    for subcategory, scores in all_subcategory_scores.items():
+        subcategory_means[subcategory] = np.mean(scores)
+    
+    # Sort subcategories by mean correlation (highest to lowest) and create ranking
+    sorted_subcategories = sorted(subcategory_means.items(), key=lambda x: x[1], reverse=True)
+    
+    # Create ranking dictionary (1-based ranking)
+    subcategory_rankings = {}
+    for rank, (subcategory, _) in enumerate(sorted_subcategories, 1):
+        subcategory_rankings[subcategory] = rank
+    
+    return subcategory_rankings
+
 def wrap_category_text(category_name, max_chars_per_line=12):
     """Wrap category text to fit in rectangles with word hyphenation"""
     # Remove 'features' and 'measures' suffixes for processing
@@ -114,7 +163,7 @@ def aggregate_correlations_by_subcategory(df, categorization, aggregation='mean'
     
     return pd.DataFrame(subcategory_data)
 
-def create_bar_chart(target_col, subcategory_df, category_colors, output_dir, global_max_y, aggregation='mean'):
+def create_bar_chart(target_col, subcategory_df, category_colors, output_dir, global_max_y, subcategory_rankings, aggregation='mean'):
     """Create a bar chart for a target column with grouped categories"""
     if subcategory_df.empty:
         print(f"No data for {target_col}")
@@ -126,9 +175,9 @@ def create_bar_chart(target_col, subcategory_df, category_colors, output_dir, gl
         cat_data = subcategory_df[subcategory_df['main_category'] == main_cat]
         category_means[main_cat] = cat_data['correlation'].mean()
     
-    # Sort categories by their mean correlation (highest first)
-    sorted_categories = sorted(category_means.items(), key=lambda x: x[1], reverse=True)
-    category_order = [cat[0] for cat in sorted_categories]
+    # Use fixed category order (consistent across all charts)
+    fixed_order = get_fixed_category_order()
+    category_order = [cat for cat in fixed_order if cat in subcategory_df['main_category'].values]
     
     # Build the grouped structure
     x_positions = []
@@ -179,10 +228,33 @@ def create_bar_chart(target_col, subcategory_df, category_colors, output_dir, gl
     # Set x-axis labels
     plt.xticks(x_positions, x_labels, rotation=45, ha='right')
     
-    # Add value labels on bars
+    # Add value labels on bars and ranking circles
     for i, (bar, value, count) in enumerate(zip(bars, bar_values, bar_counts)):
+        # Add correlation value label above bar
         plt.text(bar.get_x() + bar.get_width()/2, bar.get_height() + 0.005,
                 f'{value:.3f}', ha='center', va='bottom', fontsize=10, fontweight='bold')
+        
+        # Add ranking rectangle at the upper portion of the bar
+        subcategory_name = x_labels[i]
+        if subcategory_name in subcategory_rankings:
+            rank = subcategory_rankings[subcategory_name]
+            
+            # Calculate rectangle dimensions (smaller width than bar)
+            rect_width = bar.get_width() * 0.7  # 70% of bar width
+            rect_height = 0.018  # Fixed small height
+            rect_x = bar.get_x() + (bar.get_width() - rect_width) / 2  # Center horizontally
+            rect_y = bar.get_height() - rect_height - 0.003  # Just under the top
+            
+            # Draw white rectangle with black border
+            rectangle = plt.Rectangle((rect_x, rect_y), rect_width, rect_height,
+                                    facecolor='white', edgecolor='white', linewidth=1, zorder=15)
+            plt.gca().add_patch(rectangle)
+            
+            # Add rank number inside rectangle (readable font size)
+            text_x = rect_x + rect_width/2
+            text_y = rect_y + rect_height/2
+            plt.text(text_x, text_y, str(rank), ha='center', va='center', 
+                    fontsize=8, fontweight='bold', color='black', zorder=16)
     
     # Add category mean rectangles with consistent y-axis range
     # Set y-axis limit to be consistent across all charts
@@ -239,7 +311,7 @@ def create_bar_chart(target_col, subcategory_df, category_colors, output_dir, gl
             num_subcat = len(subcategory_df[subcategory_df['main_category'] == cat])
             print(f"    {cat}: {mean_val:.3f} (from {num_subcat} subcategories)")
 
-def create_combined_chart(categorization, category_colors, output_dir, global_max_y, aggregation='mean'):
+def create_combined_chart(categorization, category_colors, output_dir, global_max_y, subcategory_rankings, aggregation='mean'):
     """Create a combined chart with all 8 target columns in 2x4 layout"""
     
     target_columns = ['holistic', 'relevance', 'vocabulary', 'style', 
@@ -286,14 +358,15 @@ def create_combined_chart(categorization, category_colors, output_dir, global_ma
             ax.set_ylim(0, global_max_y * 1.35)  # Set consistent y-axis even for empty plots
             continue
         
-        # Calculate category means and sort
+        # Calculate category means and use fixed order
         category_means = {}
         for main_cat in subcategory_df['main_category'].unique():
             cat_data = subcategory_df[subcategory_df['main_category'] == main_cat]
             category_means[main_cat] = cat_data['correlation'].mean()
         
-        sorted_categories = sorted(category_means.items(), key=lambda x: x[1], reverse=True)
-        category_order = [cat[0] for cat in sorted_categories]
+        # Use fixed category order (consistent across all charts)
+        fixed_order = get_fixed_category_order()
+        category_order = [cat for cat in fixed_order if cat in subcategory_df['main_category'].values]
         
         # Build the grouped structure with wider spacing
         x_positions = []
@@ -338,10 +411,33 @@ def create_combined_chart(categorization, category_colors, output_dir, global_ma
         ax.set_xticks(x_positions)
         ax.set_xticklabels(x_labels, rotation=45, ha='right', fontsize=11)
         
-        # Add value labels on bars (larger fonts for 3x3 layout)
+        # Add value labels on bars and ranking circles (larger fonts for 3x3 layout)
         for i, (bar, value) in enumerate(zip(bars, bar_values)):
+            # Add correlation value label above bar
             ax.text(bar.get_x() + bar.get_width()/2, bar.get_height() + 0.003,
                     f'{value:.3f}', ha='center', va='bottom', fontsize=10, fontweight='bold')
+            
+            # Add ranking rectangle at the upper portion of the bar
+            subcategory_name = x_labels[i]
+            if subcategory_name in subcategory_rankings:
+                rank = subcategory_rankings[subcategory_name]
+                
+                # Calculate rectangle dimensions (smaller width than bar)
+                rect_width = bar.get_width() * 0.7  # 70% of bar width
+                rect_height = 0.015  # Fixed small height for combined view
+                rect_x = bar.get_x() + (bar.get_width() - rect_width) / 2  # Center horizontally
+                rect_y = bar.get_height() - rect_height - 0.003  # Just under the top
+                
+                # Draw white rectangle with black border
+                rectangle = plt.Rectangle((rect_x, rect_y), rect_width, rect_height,
+                                        facecolor='white', edgecolor='black', linewidth=1, zorder=15)
+                ax.add_patch(rectangle)
+                
+                # Add rank number inside rectangle (readable font size)
+                text_x = rect_x + rect_width/2
+                text_y = rect_y + rect_height/2
+                ax.text(text_x, text_y, str(rank), ha='center', va='center', 
+                        fontsize=7, fontweight='bold', color='black', zorder=16)
         
         # Add category mean rectangles with consistent y-axis range
         ax.set_ylim(0, global_max_y * 1.35)
@@ -441,6 +537,11 @@ def main():
     global_max_y = max(all_max_values) if all_max_values else 1.0
     print(f"Global maximum correlation: {global_max_y:.3f}")
     
+    # Calculate global subcategory rankings across all target columns
+    print("Calculating global subcategory rankings...")
+    subcategory_rankings = calculate_global_subcategory_rankings(categorization, target_columns)
+    print(f"Total subcategories ranked: {len(subcategory_rankings)}")
+    
     # Generate charts for different aggregation methods
     aggregation_methods = ['mean']
     
@@ -464,12 +565,12 @@ def main():
             # Aggregate correlations by subcategory
             subcategory_df = aggregate_correlations_by_subcategory(df, categorization, aggregation)
             
-            # Create bar chart with consistent y-axis
-            create_bar_chart(target_col, subcategory_df, category_colors, output_dir, global_max_y, aggregation)
+            # Create bar chart with consistent y-axis and rankings
+            create_bar_chart(target_col, subcategory_df, category_colors, output_dir, global_max_y, subcategory_rankings, aggregation)
     
     # Create combined chart with all targets
     print(f"\nGenerating combined chart with all targets...")
-    create_combined_chart(categorization, category_colors, output_dir, global_max_y, 'mean')
+    create_combined_chart(categorization, category_colors, output_dir, global_max_y, subcategory_rankings, 'mean')
     
     print(f"\nAll charts saved to: {output_dir}")
     print(f"Generated {len(aggregation_methods) * len(target_columns)} individual charts + 1 combined chart")
@@ -489,6 +590,8 @@ def main():
     print(f"- Larger individual subplots with enhanced font sizes and spacing")
     print(f"- Wider bars (1.2x width) with increased spacing between categories")
     print(f"- Consistent y-axis range across all subplots for better comparison")
+    print(f"- Fixed category order across all charts (Surface, Lexical, Readability, Semantic, Syntactic)")
+    print(f"- Ranking rectangles at top of bars showing global subcategory rankings")
     print(f"- Subplot titles show trait names in uppercase (e.g., HOLISTIC, RELEVANCE)")
     print(f"- Single y-axis label on left side of combined chart (no duplication)")
     print(f"- Empty subplot hidden for clean 8-target layout in 3x3 grid")
