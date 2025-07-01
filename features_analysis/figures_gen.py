@@ -172,9 +172,8 @@ def create_bar_chart(target_col, subcategory_df, category_colors, output_dir, gl
     # Create bars
     bars = plt.bar(x_positions, bar_values, color=bar_colors, alpha=0.8)
     
-    # Customize the plot with simple trait name
-    plt.title(f'Complete Feature Set Correlation with {target_col}', 
-              fontsize=16, fontweight='bold')
+    # Customize the plot with target name in uppercase
+    plt.title(target_col.upper(), fontsize=16, fontweight='bold')
     plt.ylabel('Absolute Correlation', fontsize=12)
     
     # Set x-axis labels
@@ -283,7 +282,7 @@ def create_combined_chart(categorization, category_colors, output_dir, global_ma
         
         if subcategory_df is None or subcategory_df.empty:
             ax.text(0.5, 0.5, f"No data for\n{target_col}", ha='center', va='center', transform=ax.transAxes)
-            ax.set_title(target_col, fontsize=16, fontweight='bold', pad=20)
+            ax.set_title(target_col.upper(), fontsize=16, fontweight='bold', pad=20)
             ax.set_ylim(0, global_max_y * 1.35)  # Set consistent y-axis even for empty plots
             continue
         
@@ -332,8 +331,8 @@ def create_combined_chart(categorization, category_colors, output_dir, global_ma
         # Create bars with increased width
         bars = ax.bar(x_positions, bar_values, width=bar_width, color=bar_colors, alpha=0.8)
         
-        # Set title with trait name only - larger fonts for 3x3 layout
-        ax.set_title(target_col, fontsize=16, fontweight='bold', pad=20)
+        # Set title with trait name in uppercase - larger fonts for 3x3 layout
+        ax.set_title(target_col.upper(), fontsize=16, fontweight='bold', pad=20)
         
         # Set x-axis labels with better readability - larger fonts
         ax.set_xticks(x_positions)
@@ -490,7 +489,7 @@ def main():
     print(f"- Larger individual subplots with enhanced font sizes and spacing")
     print(f"- Wider bars (1.2x width) with increased spacing between categories")
     print(f"- Consistent y-axis range across all subplots for better comparison")
-    print(f"- Subplot titles show trait names only (without title case formatting)")
+    print(f"- Subplot titles show trait names in uppercase (e.g., HOLISTIC, RELEVANCE)")
     print(f"- Single y-axis label on left side of combined chart (no duplication)")
     print(f"- Empty subplot hidden for clean 8-target layout in 3x3 grid")
 
