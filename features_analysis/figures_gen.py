@@ -114,7 +114,7 @@ def aggregate_correlations_by_subcategory(df, categorization, aggregation='mean'
     
     return pd.DataFrame(subcategory_data)
 
-def create_bar_chart(target_col, subcategory_df, category_colors, output_dir, aggregation='mean'):
+def create_bar_chart(target_col, subcategory_df, category_colors, output_dir, global_max_y, aggregation='mean'):
     """Create a bar chart for a target column with grouped categories"""
     if subcategory_df.empty:
         print(f"No data for {target_col}")
@@ -172,8 +172,8 @@ def create_bar_chart(target_col, subcategory_df, category_colors, output_dir, ag
     # Create bars
     bars = plt.bar(x_positions, bar_values, color=bar_colors, alpha=0.8)
     
-    # Customize the plot
-    plt.title(f'Complete Feature Set Correlation with {target_col.title()}', 
+    # Customize the plot with simple trait name
+    plt.title(f'Complete Feature Set Correlation with {target_col}', 
               fontsize=16, fontweight='bold')
     plt.ylabel('Absolute Correlation', fontsize=12)
     
@@ -185,21 +185,20 @@ def create_bar_chart(target_col, subcategory_df, category_colors, output_dir, ag
         plt.text(bar.get_x() + bar.get_width()/2, bar.get_height() + 0.005,
                 f'{value:.3f}', ha='center', va='bottom', fontsize=10, fontweight='bold')
     
-    # Add category mean rectangles with more space at top
-    max_y = max(bar_values) if bar_values else 1.0
-    # Set y-axis limit to create more space at top
-    plt.ylim(0, max_y * 1.25)
+    # Add category mean rectangles with consistent y-axis range
+    # Set y-axis limit to be consistent across all charts
+    plt.ylim(0, global_max_y * 1.25)
     
     for main_cat in category_order:
         if main_cat in category_ranges:
             start_pos, end_pos = category_ranges[main_cat]
             mean_val = category_means[main_cat]
             
-            # Create rectangle with more space from bars
+            # Create rectangle with consistent positioning using global scale
             rect_x = start_pos - 0.4
             rect_width = (end_pos - start_pos) + 0.8
-            rect_y = max_y * 1.10  # Position higher up
-            rect_height = max_y * 0.08  # Slightly larger height for category name
+            rect_y = global_max_y * 1.10  # Position higher up
+            rect_height = global_max_y * 0.08  # Slightly larger height for category name
             
             # Add rectangle
             rect = plt.Rectangle((rect_x, rect_y), rect_width, rect_height,
@@ -241,7 +240,7 @@ def create_bar_chart(target_col, subcategory_df, category_colors, output_dir, ag
             num_subcat = len(subcategory_df[subcategory_df['main_category'] == cat])
             print(f"    {cat}: {mean_val:.3f} (from {num_subcat} subcategories)")
 
-def create_combined_chart(categorization, category_colors, output_dir, aggregation='mean'):
+def create_combined_chart(categorization, category_colors, output_dir, global_max_y, aggregation='mean'):
     """Create a combined chart with all 8 target columns in 2x4 layout"""
     
     target_columns = ['holistic', 'relevance', 'vocabulary', 'style', 
@@ -251,17 +250,15 @@ def create_combined_chart(categorization, category_colors, output_dir, aggregati
     fig, axes = plt.subplots(3, 3, figsize=(30, 24))
     fig.suptitle('Complete Feature Set Correlations - All Target Columns', fontsize=18, fontweight='bold', y=0.96)
     
+    # Load all data for combined chart (global_max_y already calculated in main function)
+    all_subplot_data = []
+    
     for idx, target_col in enumerate(target_columns):
-        row = idx // 3
-        col = idx % 3
-        ax = axes[row, col]
-        
         # Load correlation data
         csv_path = f"../output/whole_dataset/{target_col}_whole_data_set_correlations.csv"
         
         if not os.path.exists(csv_path):
-            ax.text(0.5, 0.5, f"No data for\n{target_col}", ha='center', va='center', transform=ax.transAxes)
-            ax.set_title(target_col.title())
+            all_subplot_data.append(None)
             continue
         
         # Read correlation data
@@ -270,9 +267,24 @@ def create_combined_chart(categorization, category_colors, output_dir, aggregati
         # Aggregate correlations by subcategory
         subcategory_df = aggregate_correlations_by_subcategory(df, categorization, aggregation)
         
-        if subcategory_df.empty:
+        if not subcategory_df.empty:
+            all_subplot_data.append(subcategory_df)
+        else:
+            all_subplot_data.append(None)
+    
+    # Second pass: create the actual plots with consistent y-axis
+    for idx, target_col in enumerate(target_columns):
+        row = idx // 3
+        col = idx % 3
+        ax = axes[row, col]
+        
+        # Use pre-computed data
+        subcategory_df = all_subplot_data[idx]
+        
+        if subcategory_df is None or subcategory_df.empty:
             ax.text(0.5, 0.5, f"No data for\n{target_col}", ha='center', va='center', transform=ax.transAxes)
-            ax.set_title(target_col.title())
+            ax.set_title(target_col, fontsize=16, fontweight='bold', pad=20)
+            ax.set_ylim(0, global_max_y * 1.35)  # Set consistent y-axis even for empty plots
             continue
         
         # Calculate category means and sort
@@ -320,8 +332,8 @@ def create_combined_chart(categorization, category_colors, output_dir, aggregati
         # Create bars with increased width
         bars = ax.bar(x_positions, bar_values, width=bar_width, color=bar_colors, alpha=0.8)
         
-        # Set title (no individual y-axis labels) - larger fonts for 3x3 layout
-        ax.set_title(target_col.title(), fontsize=16, fontweight='bold', pad=20)
+        # Set title with trait name only - larger fonts for 3x3 layout
+        ax.set_title(target_col, fontsize=16, fontweight='bold', pad=20)
         
         # Set x-axis labels with better readability - larger fonts
         ax.set_xticks(x_positions)
@@ -332,9 +344,8 @@ def create_combined_chart(categorization, category_colors, output_dir, aggregati
             ax.text(bar.get_x() + bar.get_width()/2, bar.get_height() + 0.003,
                     f'{value:.3f}', ha='center', va='bottom', fontsize=10, fontweight='bold')
         
-        # Add category mean rectangles with more space
-        max_y = max(bar_values) if bar_values else 1.0
-        ax.set_ylim(0, max_y * 1.35)
+        # Add category mean rectangles with consistent y-axis range
+        ax.set_ylim(0, global_max_y * 1.35)
         
         for main_cat in category_order:
             if main_cat in category_ranges:
@@ -344,8 +355,8 @@ def create_combined_chart(categorization, category_colors, output_dir, aggregati
                 # Create rectangle with adjusted proportions for wider bars
                 rect_x = start_pos - (bar_width * 0.5)
                 rect_width = (end_pos - start_pos) + bar_width
-                rect_y = max_y * 1.15
-                rect_height = max_y * 0.12
+                rect_y = global_max_y * 1.15
+                rect_height = global_max_y * 0.12
                 
                 # Add rectangle
                 rect = plt.Rectangle((rect_x, rect_y), rect_width, rect_height,
@@ -407,6 +418,30 @@ def main():
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
     
+    # First pass: collect all data and find global max for consistent y-axis across all charts
+    print("Calculating global maximum for consistent y-axis...")
+    all_max_values = []
+    
+    for target_col in target_columns:
+        csv_path = f"../output/whole_dataset/{target_col}_whole_data_set_correlations.csv"
+        
+        if not os.path.exists(csv_path):
+            continue
+        
+        # Read correlation data
+        df = pd.read_csv(csv_path)
+        
+        # Aggregate correlations by subcategory
+        subcategory_df = aggregate_correlations_by_subcategory(df, categorization, 'mean')
+        
+        if not subcategory_df.empty:
+            max_val = subcategory_df['correlation'].max()
+            all_max_values.append(max_val)
+    
+    # Calculate global max for consistent y-axis across all charts
+    global_max_y = max(all_max_values) if all_max_values else 1.0
+    print(f"Global maximum correlation: {global_max_y:.3f}")
+    
     # Generate charts for different aggregation methods
     aggregation_methods = ['mean']
     
@@ -430,12 +465,12 @@ def main():
             # Aggregate correlations by subcategory
             subcategory_df = aggregate_correlations_by_subcategory(df, categorization, aggregation)
             
-            # Create bar chart
-            create_bar_chart(target_col, subcategory_df, category_colors, output_dir, aggregation)
+            # Create bar chart with consistent y-axis
+            create_bar_chart(target_col, subcategory_df, category_colors, output_dir, global_max_y, aggregation)
     
     # Create combined chart with all targets
     print(f"\nGenerating combined chart with all targets...")
-    create_combined_chart(categorization, category_colors, output_dir, 'mean')
+    create_combined_chart(categorization, category_colors, output_dir, global_max_y, 'mean')
     
     print(f"\nAll charts saved to: {output_dir}")
     print(f"Generated {len(aggregation_methods) * len(target_columns)} individual charts + 1 combined chart")
@@ -454,6 +489,8 @@ def main():
     print(f"- Combined 3x3 chart uses larger dimensions (30x24) for maximum readability")
     print(f"- Larger individual subplots with enhanced font sizes and spacing")
     print(f"- Wider bars (1.2x width) with increased spacing between categories")
+    print(f"- Consistent y-axis range across all subplots for better comparison")
+    print(f"- Subplot titles show trait names only (without title case formatting)")
     print(f"- Single y-axis label on left side of combined chart (no duplication)")
     print(f"- Empty subplot hidden for clean 8-target layout in 3x3 grid")
 
