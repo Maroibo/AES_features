@@ -720,9 +720,7 @@
         "pron_pron_rel_الذي",
         "pron_pron_rel_لما",
         "pron_pron_rel_التي",
-        "pron_pron_dem_هؤلاء"
-      ],
-      "Syntactic Pronoun": [
+        "pron_pron_dem_هؤلاء",
         "sent_count_general_possessive",
         "sent_percent_pron_interrog_ماذا",
         "sent_count_pron_rel_التي",
