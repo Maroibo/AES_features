@@ -1,0 +1,605 @@
+================================================================================
+CORRELATION ANALYSIS REPORT
+Target: RELEVANCE
+Dataset: Prompt 4
+Generated: 2025-07-02 19:58:19
+================================================================================
+
+GLOBAL FEATURE ANALYSIS
+----------------------------------------
+
+TOP 5 FEATURES (Highest Correlation):
+  1. top_n_num_sent_have_المعلومات
+     Correlation: 0.4385
+     Category: Lexical features
+     Subcategory: N-gram
+
+  2. top_n_percentage_sent_have_الزيارات
+     Correlation: 0.4099
+     Category: Lexical features
+     Subcategory: N-gram
+
+  3. intro_parenthesis_count
+     Correlation: 0.4062
+     Category: Lexical features
+     Subcategory: Punctuation
+
+  4. top_n_word_count_الزيارات
+     Correlation: 0.4000
+     Category: Lexical features
+     Subcategory: N-gram
+
+  5. top_n_num_sent_have_الزيارات
+     Correlation: 0.4000
+     Category: Lexical features
+     Subcategory: N-gram
+
+BOTTOM 5 FEATURES (Lowest Correlation):
+  1. لأن
+     Correlation: 0.0039
+     Category: Syntactic features
+     Subcategory: Discourse connectives
+
+  2. pos_bigram_adj_part_verb
+     Correlation: 0.0040
+     Category: Syntactic features
+     Subcategory: POS bigrams
+
+  3. conjunction
+     Correlation: 0.0060
+     Category: Syntactic features
+     Subcategory: Discourse connectives
+
+  4. sent_percent_relative
+     Correlation: 0.0076
+     Category: Syntactic features
+     Subcategory: Pronoun
+
+  5. pos_bigram_adj_prep
+     Correlation: 0.0090
+     Category: Syntactic features
+     Subcategory: POS bigrams
+
+================================================================================
+CATEGORY ANALYSIS
+================================================================================
+
+SURFACE FEATURES
+----------------
+Total features in category: 84
+Average correlation: 0.1007
+
+Top 5 features in this category:
+  1. type_token_ratio
+     Correlation: 0.2526
+     Subcategory: Word-based
+
+  2. max_length_word
+     Correlation: 0.2357
+     Subcategory: Word-based
+
+  3. intro_standard_deviation_sentence
+     Correlation: 0.2210
+     Subcategory: Sentence-based
+
+  4. standard_deviation_words
+     Correlation: 0.2128
+     Subcategory: Word-based
+
+  5. min_length_sentence
+     Correlation: 0.2112
+     Subcategory: Sentence-based
+
+
+LEXICAL FEATURES
+----------------
+Total features in category: 348
+Average correlation: 0.1366
+
+Top 5 features in this category:
+  1. top_n_num_sent_have_المعلومات
+     Correlation: 0.4385
+     Subcategory: N-gram
+
+  2. top_n_percentage_sent_have_الزيارات
+     Correlation: 0.4099
+     Subcategory: N-gram
+
+  3. intro_parenthesis_count
+     Correlation: 0.4062
+     Subcategory: Punctuation
+
+  4. top_n_word_count_الزيارات
+     Correlation: 0.4000
+     Subcategory: N-gram
+
+  5. top_n_num_sent_have_الزيارات
+     Correlation: 0.4000
+     Subcategory: N-gram
+
+
+READABILITY MEASURES
+--------------------
+Total features in category: 12
+Average correlation: 0.0369
+
+Top 5 features in this category:
+  1. AARIBase
+     Correlation: 0.0930
+     Subcategory: Arabic
+
+  2. Coleman-Liau
+     Correlation: 0.0649
+     Subcategory: English
+
+  3. Heeti
+     Correlation: 0.0501
+     Subcategory: Arabic
+
+  4. FleschReadingEase
+     Correlation: 0.0464
+     Subcategory: English
+
+  5. ARI
+     Correlation: 0.0341
+     Subcategory: English
+
+
+SEMANTIC FEATURES
+-----------------
+Total features in category: 16
+Average correlation: 0.1863
+
+Top 5 features in this category:
+  1. overall_negativity
+     Correlation: 0.3532
+     Subcategory: Sentiment
+
+  2. neutral_sentence_prop
+     Correlation: 0.3524
+     Subcategory: Sentiment
+
+  3. dot_score
+     Correlation: 0.2930
+     Subcategory: Prompt adherence
+
+  4. max_sentence_dot_score
+     Correlation: 0.2803
+     Subcategory: Prompt adherence
+
+  5. mean_sentence_dot_score
+     Correlation: 0.2752
+     Subcategory: Prompt adherence
+
+
+SYNTACTIC FEATURES
+------------------
+Total features in category: 216
+Average correlation: 0.1040
+
+Top 5 features in this category:
+  1. pos_bigram_digit_noun
+     Correlation: 0.3303
+     Subcategory: POS bigrams
+
+  2. sent_count_pron_هي
+     Correlation: 0.3281
+     Subcategory: Pronoun
+
+  3. pron_pron_هي
+     Correlation: 0.3262
+     Subcategory: Pronoun
+
+  4. pos_bigram_conj_noun
+     Correlation: 0.2735
+     Subcategory: POS bigrams
+
+  5. pos_bigram_noun_prop_conj
+     Correlation: 0.2657
+     Subcategory: POS bigrams
+
+
+================================================================================
+SUBCATEGORY ANALYSIS
+================================================================================
+
+PROMPT ADHERENCE (Semantic features)
+------------------------------------
+Total features in subcategory: 4
+Average correlation: 0.2184
+
+Top 5 features in this subcategory:
+  1. dot_score
+     Correlation: 0.2930
+
+  2. max_sentence_dot_score
+     Correlation: 0.2803
+
+  3. mean_sentence_dot_score
+     Correlation: 0.2752
+
+  4. min_sentence_dot_score
+     Correlation: 0.0251
+
+
+SENTIMENT (Semantic features)
+-----------------------------
+Total features in subcategory: 6
+Average correlation: 0.2085
+
+Top 5 features in this subcategory:
+  1. overall_negativity
+     Correlation: 0.3532
+
+  2. neutral_sentence_prop
+     Correlation: 0.3524
+
+  3. positive_sentence_prop
+     Correlation: 0.1790
+
+  4. overall_positivity
+     Correlation: 0.1667
+
+  5. negative_sentence_prop
+     Correlation: 0.1017
+
+
+TEXT SIMILARITY (Semantic features)
+-----------------------------------
+Total features in subcategory: 6
+Average correlation: 0.1428
+
+Top 5 features in this subcategory:
+  1. max_sent_sim
+     Correlation: 0.2225
+
+  2. avg_paragraph_sim
+     Correlation: 0.2078
+
+  3. max_paragraph_sim
+     Correlation: 0.1568
+
+  4. avg_matched_words
+     Correlation: 0.1311
+
+  5. max_matched_words
+     Correlation: 0.0965
+
+
+N-GRAM (Lexical features)
+-------------------------
+Total features in subcategory: 288
+Average correlation: 0.1406
+
+Top 5 features in this subcategory:
+  1. top_n_num_sent_have_المعلومات
+     Correlation: 0.4385
+
+  2. top_n_percentage_sent_have_الزيارات
+     Correlation: 0.4099
+
+  3. top_n_word_count_الزيارات
+     Correlation: 0.4000
+
+  4. top_n_num_sent_have_الزيارات
+     Correlation: 0.4000
+
+  5. top_n_num_sent_have_الطلاب
+     Correlation: 0.3951
+
+
+PRONOUN (Syntactic features)
+----------------------------
+Total features in subcategory: 46
+Average correlation: 0.1354
+
+Top 5 features in this subcategory:
+  1. sent_count_pron_هي
+     Correlation: 0.3281
+
+  2. pron_pron_هي
+     Correlation: 0.3262
+
+  3. pron_pron_هو
+     Correlation: 0.2543
+
+  4. sent_count_pron_هو
+     Correlation: 0.2522
+
+  5. group_third_person
+     Correlation: 0.2434
+
+
+PUNCTUATION (Lexical features)
+------------------------------
+Total features in subcategory: 57
+Average correlation: 0.1199
+
+Top 5 features in this subcategory:
+  1. intro_parenthesis_count
+     Correlation: 0.4062
+
+  2. intro_dash_count
+     Correlation: 0.3751
+
+  3. dash_count
+     Correlation: 0.2604
+
+  4. parenthesis_count
+     Correlation: 0.2322
+
+  5. semicolon_missing
+     Correlation: 0.2127
+
+
+POS TAGS (Syntactic features)
+-----------------------------
+Total features in subcategory: 29
+Average correlation: 0.1183
+
+Top 5 features in this subcategory:
+  1. pos_verb_pseudo
+     Correlation: 0.2340
+
+  2. pos_digit
+     Correlation: 0.2061
+
+  3. pos_conj
+     Correlation: 0.2020
+
+  4. pos_foreign
+     Correlation: 0.1938
+
+  5. pos_interj
+     Correlation: 0.1831
+
+
+WORD-BASED (Surface features)
+-----------------------------
+Total features in subcategory: 50
+Average correlation: 0.1098
+
+Top 5 features in this subcategory:
+  1. type_token_ratio
+     Correlation: 0.2526
+
+  2. max_length_word
+     Correlation: 0.2357
+
+  3. standard_deviation_words
+     Correlation: 0.2128
+
+  4. intro_max_length_word
+     Correlation: 0.2086
+
+  5. conclusion_log_words_count
+     Correlation: 0.2042
+
+
+ARABIC GRAMMETICAL (Syntactic features)
+---------------------------------------
+Total features in subcategory: 4
+Average correlation: 0.1071
+
+Top 5 features in this subcategory:
+  1. total_jazm
+     Correlation: 0.1694
+
+  2. auxverb
+     Correlation: 0.1062
+
+  3. jazm_with_plural_verb
+     Correlation: 0.0835
+
+  4. kana_count
+     Correlation: 0.0691
+
+
+POS BIGRAMS (Syntactic features)
+--------------------------------
+Total features in subcategory: 100
+Average correlation: 0.0987
+
+Top 5 features in this subcategory:
+  1. pos_bigram_digit_noun
+     Correlation: 0.3303
+
+  2. pos_bigram_conj_noun
+     Correlation: 0.2735
+
+  3. pos_bigram_noun_prop_conj
+     Correlation: 0.2657
+
+  4. pos_bigram_pron_rel_prep
+     Correlation: 0.2630
+
+  5. pos_bigram_noun_pron
+     Correlation: 0.2436
+
+
+CHARACTER-BASED (Surface features)
+----------------------------------
+Total features in subcategory: 6
+Average correlation: 0.0975
+
+Top 5 features in this subcategory:
+  1. body_hmpz_count
+     Correlation: 0.1334
+
+  2. hmpz_count
+     Correlation: 0.1137
+
+  3. conclusion_hmpz_count
+     Correlation: 0.0976
+
+  4. chars_count
+     Correlation: 0.0921
+
+  5. misspelled_count
+     Correlation: 0.0764
+
+
+SENTENCE-BASED (Surface features)
+---------------------------------
+Total features in subcategory: 19
+Average correlation: 0.0868
+
+Top 5 features in this subcategory:
+  1. intro_standard_deviation_sentence
+     Correlation: 0.2210
+
+  2. min_length_sentence
+     Correlation: 0.2112
+
+  3. conclusion_sentences_count
+     Correlation: 0.2040
+
+  4. max_length_sentence
+     Correlation: 0.1408
+
+  5. standard_deviation_sentence
+     Correlation: 0.0926
+
+
+PARAGRAPH-BASED (Surface features)
+----------------------------------
+Total features in subcategory: 9
+Average correlation: 0.0818
+
+Top 5 features in this subcategory:
+  1. paragraphs_count
+     Correlation: 0.1756
+
+  2. shortest_paragraph_length
+     Correlation: 0.1009
+
+  3. longest_paragraph_length
+     Correlation: 0.0907
+
+  4. max_length_paragraph
+     Correlation: 0.0836
+
+  5. longest_paragraph_length_ratio
+     Correlation: 0.0769
+
+
+SENTENCE STRUCTURE (Syntactic features)
+---------------------------------------
+Total features in subcategory: 13
+Average correlation: 0.0738
+
+Top 5 features in this subcategory:
+  1. begin_w_article
+     Correlation: 0.1794
+
+  2. nominal_sentences
+     Correlation: 0.1289
+
+  3. max_clause_in_s
+     Correlation: 0.1093
+
+  4. clause_per_s
+     Correlation: 0.1010
+
+  5. begin_w_pronoun
+     Correlation: 0.0925
+
+
+DISCOURSE CONNECTIVES (Syntactic features)
+------------------------------------------
+Total features in subcategory: 24
+Average correlation: 0.0642
+
+Top 5 features in this subcategory:
+  1. كلما
+     Correlation: 0.1745
+
+  2. بالرغم من
+     Correlation: 0.1615
+
+  3. بحيث
+     Correlation: 0.1496
+
+  4. حتى لو
+     Correlation: 0.0982
+
+  5. في ظل
+     Correlation: 0.0982
+
+
+DIALECT (Lexical features)
+--------------------------
+Total features in subcategory: 3
+Average correlation: 0.0635
+
+Top 5 features in this subcategory:
+  1. dialect_counts
+     Correlation: 0.1028
+
+  2. dialect_percentage
+     Correlation: 0.0438
+
+  3. msa_percentage
+     Correlation: 0.0438
+
+
+ARABIC (Readability measures)
+-----------------------------
+Total features in subcategory: 3
+Average correlation: 0.0564
+
+Top 5 features in this subcategory:
+  1. AARIBase
+     Correlation: 0.0930
+
+  2. Heeti
+     Correlation: 0.0501
+
+  3. OSMAN
+     Correlation: 0.0261
+
+
+ENGLISH (Readability measures)
+------------------------------
+Total features in subcategory: 9
+Average correlation: 0.0304
+
+Top 5 features in this subcategory:
+  1. Coleman-Liau
+     Correlation: 0.0649
+
+  2. FleschReadingEase
+     Correlation: 0.0464
+
+  3. ARI
+     Correlation: 0.0341
+
+  4. RIX
+     Correlation: 0.0276
+
+  5. SMOGIndex
+     Correlation: 0.0263
+
+
+================================================================================
+SUMMARY STATISTICS
+================================================================================
+
+Total features analyzed: 676
+Mean correlation: 0.1211
+Median correlation: 0.0982
+Standard deviation: 0.0855
+Min correlation: 0.0039
+Max correlation: 0.4385
+
+Category Performance Summary (by average correlation):
+  1. Semantic features: 0.1863 (from 16 features)
+  2. Lexical features: 0.1366 (from 348 features)
+  3. Syntactic features: 0.1040 (from 216 features)
+  4. Surface features: 0.1007 (from 84 features)
+  5. Readability measures: 0.0369 (from 12 features)
+
+Top 3 Subcategories (by average correlation):
+  1. Prompt adherence (Semantic features): 0.2184 (from 4 features)
+  2. Sentiment (Semantic features): 0.2085 (from 6 features)
+  3. Text similarity (Semantic features): 0.1428 (from 6 features)

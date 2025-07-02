@@ -39,42 +39,37 @@ def get_fixed_category_order():
         'Syntactic features'
     ]
 
-def calculate_global_subcategory_rankings(categorization, target_columns):
-    """Calculate global ranking of all subcategories across all target columns"""
-    all_subcategory_scores = {}
+def get_csv_filename(target_col, dataset_name):
+    """Generate appropriate CSV filename based on dataset"""
+    if dataset_name == "whole_dataset":
+        return f"{target_col}_whole_data_set_correlations.csv"
+    else:
+        return f"{target_col}_{dataset_name}_correlations.csv"
+
+def calculate_target_specific_subcategory_rankings(target_col, categorization, dataset_name):
+    """Calculate ranking of subcategories for a specific target column"""
+    csv_filename = get_csv_filename(target_col, dataset_name)
+    csv_path = f"../output/{dataset_name}/{csv_filename}"
     
-    for target_col in target_columns:
-        csv_path = f"../output/whole_dataset/{target_col}_whole_data_set_correlations.csv"
-        
-        if not os.path.exists(csv_path):
-            continue
-        
-        # Read correlation data
-        df = pd.read_csv(csv_path)
-        
-        # Aggregate correlations by subcategory
-        subcategory_df = aggregate_correlations_by_subcategory(df, categorization, 'mean')
-        
-        for _, row in subcategory_df.iterrows():
-            subcategory = row['subcategory']
-            correlation = row['correlation']
-            
-            if subcategory not in all_subcategory_scores:
-                all_subcategory_scores[subcategory] = []
-            all_subcategory_scores[subcategory].append(correlation)
+    if not os.path.exists(csv_path):
+        return {}
     
-    # Calculate mean correlation for each subcategory across all target columns
-    subcategory_means = {}
-    for subcategory, scores in all_subcategory_scores.items():
-        subcategory_means[subcategory] = np.mean(scores)
+    # Read correlation data
+    df = pd.read_csv(csv_path)
     
-    # Sort subcategories by mean correlation (highest to lowest) and create ranking
-    sorted_subcategories = sorted(subcategory_means.items(), key=lambda x: x[1], reverse=True)
+    # Aggregate correlations by subcategory
+    subcategory_df = aggregate_correlations_by_subcategory(df, categorization, 'mean')
+    
+    if subcategory_df.empty:
+        return {}
+    
+    # Sort subcategories by correlation for this specific target (highest to lowest)
+    subcategory_df_sorted = subcategory_df.sort_values('correlation', ascending=False)
     
     # Create ranking dictionary (1-based ranking)
     subcategory_rankings = {}
-    for rank, (subcategory, _) in enumerate(sorted_subcategories, 1):
-        subcategory_rankings[subcategory] = rank
+    for rank, (_, row) in enumerate(subcategory_df_sorted.iterrows(), 1):
+        subcategory_rankings[row['subcategory']] = rank
     
     return subcategory_rankings
 
@@ -163,7 +158,7 @@ def aggregate_correlations_by_subcategory(df, categorization, aggregation='mean'
     
     return pd.DataFrame(subcategory_data)
 
-def create_bar_chart(target_col, subcategory_df, category_colors, output_dir, global_max_y, subcategory_rankings, aggregation='mean'):
+def create_bar_chart(target_col, subcategory_df, category_colors, output_dir, global_max_y, categorization, dataset_name, aggregation='mean'):
     """Create a bar chart for a target column with grouped categories"""
     if subcategory_df.empty:
         print(f"No data for {target_col}")
@@ -221,12 +216,16 @@ def create_bar_chart(target_col, subcategory_df, category_colors, output_dir, gl
     # Create bars
     bars = plt.bar(x_positions, bar_values, color=bar_colors, alpha=0.8)
     
-    # Customize the plot with target name in uppercase
-    plt.title(target_col.upper(), fontsize=16, fontweight='bold')
+    # Customize the plot with target name in uppercase and dataset name
+    title = f"{target_col.upper()} - {dataset_name.replace('_', ' ').title()}"
+    plt.title(title, fontsize=16, fontweight='bold')
     plt.ylabel('Absolute Correlation', fontsize=12)
     
     # Set x-axis labels
     plt.xticks(x_positions, x_labels, rotation=45, ha='right')
+    
+    # Calculate target-specific rankings
+    subcategory_rankings = calculate_target_specific_subcategory_rankings(target_col, categorization, dataset_name)
     
     # Add value labels on bars and ranking circles
     for i, (bar, value, count) in enumerate(zip(bars, bar_values, bar_counts)):
@@ -295,8 +294,8 @@ def create_bar_chart(target_col, subcategory_df, category_colors, output_dir, gl
     plt.tight_layout()
     plt.grid(axis='y', alpha=0.3)
     
-    # Save the figure
-    filename = f"{target_col}_complete_feature_set_correlation.png"
+    # Save the figure with dataset-specific naming
+    filename = f"{target_col}_{dataset_name}_feature_correlations.png"
     filepath = os.path.join(output_dir, filename)
     plt.savefig(filepath, dpi=300, bbox_inches='tight')
     plt.close()
@@ -304,29 +303,31 @@ def create_bar_chart(target_col, subcategory_df, category_colors, output_dir, gl
     print(f"Saved: {filepath}")
     
     # Print category summary (ordered by correlation)
-    print(f"  Category means for {target_col} (ordered by correlation):")
+    print(f"  Category means for {target_col} - {dataset_name} (ordered by correlation):")
     for cat in category_order:
         if cat in category_means:
             mean_val = category_means[cat]
             num_subcat = len(subcategory_df[subcategory_df['main_category'] == cat])
             print(f"    {cat}: {mean_val:.3f} (from {num_subcat} subcategories)")
 
-def create_combined_chart(categorization, category_colors, output_dir, global_max_y, subcategory_rankings, aggregation='mean'):
-    """Create a combined chart with all 8 target columns in 2x4 layout"""
+def create_combined_chart(categorization, category_colors, output_dir, global_max_y, dataset_name, aggregation='mean'):
+    """Create a combined chart with all 8 target columns in 3x3 layout for a specific dataset"""
     
     target_columns = ['holistic', 'relevance', 'vocabulary', 'style', 
                      'development', 'mechanics', 'grammar', 'organization']
     
     # Create figure with subplots (3 rows, 3 columns) - larger individual subplots
     fig, axes = plt.subplots(3, 3, figsize=(30, 24))
-    fig.suptitle('Complete Feature Set Correlations - All Target Columns', fontsize=18, fontweight='bold', y=0.96)
+    dataset_title = dataset_name.replace('_', ' ').title()
+    fig.suptitle(f'Complete Feature Set Correlations - {dataset_title}', fontsize=18, fontweight='bold', y=0.96)
     
     # Load all data for combined chart (global_max_y already calculated in main function)
     all_subplot_data = []
     
     for idx, target_col in enumerate(target_columns):
         # Load correlation data
-        csv_path = f"../output/whole_dataset/{target_col}_whole_data_set_correlations.csv"
+        csv_filename = get_csv_filename(target_col, dataset_name)
+        csv_path = f"../output/{dataset_name}/{csv_filename}"
         
         if not os.path.exists(csv_path):
             all_subplot_data.append(None)
@@ -411,6 +412,9 @@ def create_combined_chart(categorization, category_colors, output_dir, global_ma
         ax.set_xticks(x_positions)
         ax.set_xticklabels(x_labels, rotation=45, ha='right', fontsize=11)
         
+        # Calculate target-specific rankings for this subplot
+        target_specific_rankings = calculate_target_specific_subcategory_rankings(target_col, categorization, dataset_name)
+        
         # Add value labels on bars and ranking circles (larger fonts for 3x3 layout)
         for i, (bar, value) in enumerate(zip(bars, bar_values)):
             # Add correlation value label above bar
@@ -419,8 +423,8 @@ def create_combined_chart(categorization, category_colors, output_dir, global_ma
             
             # Add ranking rectangle at the upper portion of the bar
             subcategory_name = x_labels[i]
-            if subcategory_name in subcategory_rankings:
-                rank = subcategory_rankings[subcategory_name]
+            if subcategory_name in target_specific_rankings:
+                rank = target_specific_rankings[subcategory_name]
                 
                 # Calculate rectangle dimensions (smaller width than bar)
                 rect_width = bar.get_width() * 0.7  # 70% of bar width
@@ -486,39 +490,32 @@ def create_combined_chart(categorization, category_colors, output_dir, global_ma
     plt.subplots_adjust(left=0.07, top=0.93, hspace=0.3, wspace=0.25)
     
     # Save the combined figure as PDF to preserve all formatting
-    filename = f"all_targets_combined_feature_correlations.pdf"
+    filename = f"all_targets_combined_{dataset_name}_correlations.pdf"
     filepath = os.path.join(output_dir, filename)
     plt.savefig(filepath, format='pdf', bbox_inches='tight')
     plt.close()
     
     print(f"Saved combined chart: {filepath}")
 
-def main():
-    """Main function to generate all bar charts"""
+def process_dataset(dataset_name, categorization, target_columns, category_colors, aggregation_methods):
+    """Process a single dataset and generate all charts for it"""
+    print(f"\n{'='*60}")
+    print(f"Processing dataset: {dataset_name}")
+    print(f"{'='*60}")
     
-    # Load categorization
-    categorization = load_categorization()
-    if not categorization:
-        return
-    
-    # Define target columns
-    target_columns = ['holistic', 'relevance', 'vocabulary', 'style', 
-                     'development', 'mechanics', 'grammar', 'organization']
-    
-    # Get color palette
-    category_colors = get_category_colors()
-    
-    # Create output directory for figures
-    output_dir = "../output/figures"
+    # Create output directory for this dataset's figures
+    output_dir = f"../output/figures/{dataset_name}"
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
+        print(f"Created directory: {output_dir}")
     
     # First pass: collect all data and find global max for consistent y-axis across all charts
-    print("Calculating global maximum for consistent y-axis...")
+    print(f"Calculating global maximum for consistent y-axis for {dataset_name}...")
     all_max_values = []
     
     for target_col in target_columns:
-        csv_path = f"../output/whole_dataset/{target_col}_whole_data_set_correlations.csv"
+        csv_filename = get_csv_filename(target_col, dataset_name)
+        csv_path = f"../output/{dataset_name}/{csv_filename}"
         
         if not os.path.exists(csv_path):
             continue
@@ -535,25 +532,19 @@ def main():
     
     # Calculate global max for consistent y-axis across all charts
     global_max_y = max(all_max_values) if all_max_values else 1.0
-    print(f"Global maximum correlation: {global_max_y:.3f}")
+    print(f"Global maximum correlation for {dataset_name}: {global_max_y:.3f}")
     
-    # Calculate global subcategory rankings across all target columns
-    print("Calculating global subcategory rankings...")
-    subcategory_rankings = calculate_global_subcategory_rankings(categorization, target_columns)
-    print(f"Total subcategories ranked: {len(subcategory_rankings)}")
-    
-    # Generate charts for different aggregation methods
-    aggregation_methods = ['mean']
-    
-    print("Generating bar charts...")
-    print("="*50)
+    # Generate charts for different aggregation methods (rankings will be calculated per target)
+    print(f"Generating bar charts for {dataset_name}...")
+    print("-" * 50)
     
     for aggregation in aggregation_methods:
-        print(f"\nGenerating charts with {aggregation} aggregation...")
+        print(f"\nGenerating charts with {aggregation} aggregation for {dataset_name}...")
         
         for target_col in target_columns:
             # Load correlation data
-            csv_path = f"../output/whole_dataset/{target_col}_whole_data_set_correlations.csv"
+            csv_filename = get_csv_filename(target_col, dataset_name)
+            csv_path = f"../output/{dataset_name}/{csv_filename}"
             
             if not os.path.exists(csv_path):
                 print(f"CSV file not found: {csv_path}")
@@ -565,36 +556,76 @@ def main():
             # Aggregate correlations by subcategory
             subcategory_df = aggregate_correlations_by_subcategory(df, categorization, aggregation)
             
-            # Create bar chart with consistent y-axis and rankings
-            create_bar_chart(target_col, subcategory_df, category_colors, output_dir, global_max_y, subcategory_rankings, aggregation)
+            # Create bar chart with consistent y-axis and target-specific rankings
+            create_bar_chart(target_col, subcategory_df, category_colors, output_dir, global_max_y, categorization, dataset_name, aggregation)
     
-    # Create combined chart with all targets
-    print(f"\nGenerating combined chart with all targets...")
-    create_combined_chart(categorization, category_colors, output_dir, global_max_y, subcategory_rankings, 'mean')
+    # Create combined chart with all targets for this dataset
+    print(f"\nGenerating combined chart for {dataset_name}...")
+    create_combined_chart(categorization, category_colors, output_dir, global_max_y, dataset_name, 'mean')
     
-    print(f"\nAll charts saved to: {output_dir}")
-    print(f"Generated {len(aggregation_methods) * len(target_columns)} individual charts + 1 combined chart")
+    print(f"\nAll charts for {dataset_name} saved to: {output_dir}")
+    print(f"Generated {len(aggregation_methods) * len(target_columns)} individual charts + 1 combined chart for {dataset_name}")
+
+def main():
+    """Main function to generate all bar charts for all datasets"""
     
-    # Print summary statistics
-    print(f"\nSummary:")
-    print(f"- Target columns: {len(target_columns)}")
-    print(f"- Aggregation methods: {aggregation_methods}")
-    print(f"- Main categories: {len(category_colors)}")
+    # Load categorization
+    categorization = load_categorization()
+    if not categorization:
+        return
+    
+    # Define target columns
+    target_columns = ['holistic', 'relevance', 'vocabulary', 'style', 
+                     'development', 'mechanics', 'grammar', 'organization']
+    
+    # Define datasets to process
+    datasets = ['whole_dataset', 'prompt_1', 'prompt_2', 'prompt_3', 'prompt_4']
+    
+    # Get color palette
+    category_colors = get_category_colors()
+    
+    # Create main output directory for figures
+    main_output_dir = "../output/figures"
+    if not os.path.exists(main_output_dir):
+        os.makedirs(main_output_dir)
+    
+    # Generate charts for different aggregation methods
+    aggregation_methods = ['mean']
+    
+    print("Starting figure generation for all datasets...")
+    print("="*80)
+    
+    # Process each dataset
+    for dataset_name in datasets:
+        # Check if dataset directory exists
+        dataset_dir = f"../output/{dataset_name}"
+        if not os.path.exists(dataset_dir):
+            print(f"Dataset directory not found: {dataset_dir}")
+            continue
+        
+        # Process this dataset
+        process_dataset(dataset_name, categorization, target_columns, category_colors, aggregation_methods)
+    
+    # Print final summary
+    print(f"\n{'='*80}")
+    print(f"FINAL SUMMARY")
+    print(f"{'='*80}")
+    print(f"Processed datasets: {len([d for d in datasets if os.path.exists(f'../output/{d}')])}")
+    print(f"Target columns per dataset: {len(target_columns)}")
+    print(f"Aggregation methods: {aggregation_methods}")
+    print(f"Main categories: {len(category_colors)}")
+    print(f"Figures saved to subdirectories in: {main_output_dir}")
+    print(f"\nFeatures:")
     print(f"- Categories are ordered by correlation strength (highest to lowest)")
     print(f"- Category names and means shown as rectangles at the top of each section")
-    print(f"- Correlation values displayed on bars (feature counts removed for cleaner look)")
-    print(f"- No legend - category information shown in rectangles with 'Features' label")
-    print(f"- Text wrapping applied to long category names to prevent overflow")
-    print(f"- Individual charts saved as PNG, combined chart saved as PDF")
-    print(f"- Combined 3x3 chart uses larger dimensions (30x24) for maximum readability")
-    print(f"- Larger individual subplots with enhanced font sizes and spacing")
-    print(f"- Wider bars (1.2x width) with increased spacing between categories")
-    print(f"- Consistent y-axis range across all subplots for better comparison")
+    print(f"- Correlation values displayed on bars")
+    print(f"- Individual charts saved as PNG, combined charts saved as PDF")
+    print(f"- Combined 3x3 charts use larger dimensions (30x24) for maximum readability")
+    print(f"- Consistent y-axis range across all charts for better comparison")
     print(f"- Fixed category order across all charts (Surface, Lexical, Readability, Semantic, Syntactic)")
-    print(f"- Ranking rectangles at top of bars showing global subcategory rankings")
-    print(f"- Subplot titles show trait names in uppercase (e.g., HOLISTIC, RELEVANCE)")
-    print(f"- Single y-axis label on left side of combined chart (no duplication)")
-    print(f"- Empty subplot hidden for clean 8-target layout in 3x3 grid")
+    print(f"- Ranking rectangles at top of bars showing target-specific subcategory rankings (rank 1 = highest correlation for that target)")
+    print(f"- Chart titles include dataset names for clear identification")
+    print(f"- Separate subdirectories for each dataset mirroring the output structure")
 
 if __name__ == "__main__":
     main()

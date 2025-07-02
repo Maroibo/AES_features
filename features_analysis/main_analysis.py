@@ -46,7 +46,7 @@ def calculate_correlations_for_target(df, target_col, feature_columns):
         # Get non-null values for both columns
         mask = df[target_col].notna() & df[feature_col].notna()
         
-        if mask.sum() < 2:  # Need at least 2 points for correlation
+        if mask.sum() < 50:  # Need at least 2 points for correlation
             continue
             
         target_values = df[target_col][mask]
