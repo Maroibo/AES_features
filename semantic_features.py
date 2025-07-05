@@ -31,7 +31,7 @@ def calculate_sentiment_scores(essay):
     neutral_confidence = 0
     
     # Calculate sentiment for each sentence in batches
-    batch_size = 4  # Process 4 sentences at a time
+    batch_size = 8  # Process 4 sentences at a time
     positive_scores = []
     negative_scores = []
     neutral_scores = []  # Added neutral scores list

@@ -7,6 +7,7 @@ from collections import defaultdict
 import seaborn as sns
 import textwrap
 
+
 def load_categorization():
     """Load feature categorization from JSON file"""
     json_path = "../output/feature_categorization.json"
@@ -18,6 +19,16 @@ def load_categorization():
         print(f"Categorization file not found: {json_path}")
         print("Please run cat_analysis.py first to generate the categorization.")
         return None
+
+def get_category_short_names():
+    """Map full category names to shortened versions"""
+    return {
+        'Surface features': 'SR-F',
+        'Lexical features': 'LX-F',
+        'Readability measures': 'RD-F',
+        'Semantic features': 'SM-F',
+        'Syntactic features': 'SY-F'
+    }
 
 def get_category_colors():
     """Define color palette for main categories"""
@@ -74,41 +85,25 @@ def calculate_target_specific_subcategory_rankings(target_col, categorization, d
     return subcategory_rankings
 
 def wrap_category_text(category_name, max_chars_per_line=12):
-    """Wrap category text to fit in rectangles with word hyphenation"""
-    # Remove 'features' and 'measures' suffixes for processing
-    clean_name = category_name.replace(' features', '').replace(' measures', '')
+    """Return short category name instead of wrapping text"""
+    short_names = get_category_short_names()
+    return short_names.get(category_name, category_name)
+
+def calculate_simple_text_positions(bars, bar_values):
+    """Calculate simple text positions above bars"""
+    if not bars:
+        return []
     
-    # Check if the final result (clean_name + " Features") would be too long
-    final_text = f"{clean_name} Features"
-    if len(final_text) <= max_chars_per_line:
-        return final_text
+    # Calculate simple positions for each text label
+    positions = []
+    for i, (bar, value) in enumerate(zip(bars, bar_values)):
+        x = bar.get_x() + bar.get_width()/2
+        y = bar.get_height() + 0.003  # Small vertical offset
+        positions.append({
+            'x': x, 'y': y, 'value': value, 'index': i
+        })
     
-    # If clean_name itself is too long, try to hyphenate it
-    if len(clean_name) > max_chars_per_line:
-        # Try to find a good break point for hyphenation
-        if len(clean_name) >= 8:  # Only hyphenate reasonably long words
-            # Look for natural break points (vowels followed by consonants)
-            for i in range(4, len(clean_name) - 3):  # Don't break too early or late
-                char = clean_name[i].lower()
-                next_char = clean_name[i+1].lower() if i+1 < len(clean_name) else ''
-                
-                # Break after vowels before consonants, or after common prefixes
-                if ((char in 'aeiou' and next_char not in 'aeiou') or 
-                    clean_name[:i+1].lower() in ['read', 'synt', 'lex', 'sem']):
-                    if len(clean_name[:i+1]) <= max_chars_per_line - 1:  # Leave space for hyphen
-                        return f"{clean_name[:i+1]}-\n{clean_name[i+1:]} Features"
-            
-            # If no good break point found, break at middle
-            mid_point = len(clean_name) // 2
-            # Adjust break point to avoid breaking at vowels when possible
-            for offset in range(-2, 3):
-                break_point = mid_point + offset
-                if (0 < break_point < len(clean_name) - 1 and 
-                    len(clean_name[:break_point]) <= max_chars_per_line - 1):
-                    return f"{clean_name[:break_point]}-\n{clean_name[break_point:]} Features"
-    
-    # If clean_name fits but final text doesn't, put "Features" on second line
-    return f"{clean_name}\nFeatures"
+    return positions
 
 def aggregate_correlations_by_subcategory(df, categorization, aggregation='mean'):
     """Aggregate correlation values by subcategory"""
@@ -213,8 +208,8 @@ def create_bar_chart(target_col, subcategory_df, category_colors, output_dir, gl
     # Create figure
     plt.figure(figsize=(16, 10))
     
-    # Create bars
-    bars = plt.bar(x_positions, bar_values, color=bar_colors, alpha=0.8)
+    # Create bars (set zorder to appear above grid)
+    bars = plt.bar(x_positions, bar_values, color=bar_colors, alpha=0.8, zorder=3)
     
     # Customize the plot with target name in uppercase and dataset name
     title = f"{target_col.upper()} - {dataset_name.replace('_', ' ').title()}"
@@ -228,10 +223,19 @@ def create_bar_chart(target_col, subcategory_df, category_colors, output_dir, gl
     subcategory_rankings = calculate_target_specific_subcategory_rankings(target_col, categorization, dataset_name)
     
     # Add value labels on bars and ranking circles
+    # Calculate simple text positions for correlation values
+    text_positions = calculate_simple_text_positions(bars, bar_values)
+    
     for i, (bar, value, count) in enumerate(zip(bars, bar_values, bar_counts)):
-        # Add correlation value label above bar
-        plt.text(bar.get_x() + bar.get_width()/2, bar.get_height() + 0.005,
-                f'{value:.3f}', ha='center', va='bottom', fontsize=10, fontweight='bold')
+        # Add correlation value label above bar using simple position
+        if i < len(text_positions):
+            pos = text_positions[i]
+            plt.text(pos['x'], pos['y'], f'{value:.3f}', ha='center', va='bottom', 
+                    fontsize=10, fontweight='bold')
+        else:
+            # Fallback to original positioning if something goes wrong
+            plt.text(bar.get_x() + bar.get_width()/2, bar.get_height() + 0.003,
+                    f'{value:.3f}', ha='center', va='bottom', fontsize=10, fontweight='bold')
         
         # Add ranking rectangle at the upper portion of the bar
         subcategory_name = x_labels[i]
@@ -280,7 +284,7 @@ def create_bar_chart(target_col, subcategory_df, category_colors, output_dir, gl
             wrapped_cat_name = wrap_category_text(main_cat)
             plt.text(rect_x + rect_width/2, rect_y + rect_height/2,
                     f'{wrapped_cat_name}\n{mean_val:.3f}', ha='center', va='center', 
-                    fontsize=8, fontweight='bold', color='white')
+                    fontsize=10, fontweight='bold', color='white')
     
     # Add vertical lines to separate main categories  
     for i, main_cat in enumerate(category_order[:-1]):  # Don't add line after last category
@@ -310,18 +314,22 @@ def create_bar_chart(target_col, subcategory_df, category_colors, output_dir, gl
             num_subcat = len(subcategory_df[subcategory_df['main_category'] == cat])
             print(f"    {cat}: {mean_val:.3f} (from {num_subcat} subcategories)")
 
-def create_combined_chart(categorization, category_colors, output_dir, global_max_y, dataset_name, aggregation='mean'):
-    """Create a combined chart with all 8 target columns in 3x3 layout for a specific dataset"""
-    
+
+
+def create_combined_chart_from_pdfs(categorization, category_colors, output_dir, dataset_name, aggregation='mean'):
+    """
+    Create a combined chart with all 8 target columns in 3x3 layout for a specific dataset
+    This version uses much larger dimensions to avoid squishing
+    """
     target_columns = ['holistic', 'relevance', 'vocabulary', 'style', 
                      'development', 'mechanics', 'grammar', 'organization']
     
-    # Create figure with subplots (3 rows, 3 columns) - larger individual subplots
-    fig, axes = plt.subplots(3, 3, figsize=(30, 24))
+    # Create figure with subplots (3 rows, 3 columns) - Wider to ensure right padding
+    fig, axes = plt.subplots(3, 3, figsize=(60, 34))  # Increased width to ensure right padding
     dataset_title = dataset_name.replace('_', ' ').title()
-    fig.suptitle(f'Complete Feature Set Correlations - {dataset_title}', fontsize=18, fontweight='bold', y=0.96)
+    fig.suptitle(f'Complete Feature Set Correlations - {dataset_title}', fontsize=28, fontweight='bold', y=0.98)
     
-    # Load all data for combined chart (global_max_y already calculated in main function)
+    # Load all data for combined chart
     all_subplot_data = []
     
     for idx, target_col in enumerate(target_columns):
@@ -344,7 +352,15 @@ def create_combined_chart(categorization, category_colors, output_dir, global_ma
         else:
             all_subplot_data.append(None)
     
-    # Second pass: create the actual plots with consistent y-axis
+    # Calculate global max for consistent y-axis
+    all_max_values = []
+    for subcategory_df in all_subplot_data:
+        if subcategory_df is not None and not subcategory_df.empty:
+            all_max_values.append(subcategory_df['correlation'].max())
+    
+    global_max_y = max(all_max_values) if all_max_values else 1.0
+    
+    # Create the actual plots with consistent y-axis
     for idx, target_col in enumerate(target_columns):
         row = idx // 3
         col = idx % 3
@@ -355,8 +371,8 @@ def create_combined_chart(categorization, category_colors, output_dir, global_ma
         
         if subcategory_df is None or subcategory_df.empty:
             ax.text(0.5, 0.5, f"No data for\n{target_col}", ha='center', va='center', transform=ax.transAxes)
-            ax.set_title(target_col.upper(), fontsize=16, fontweight='bold', pad=20)
-            ax.set_ylim(0, global_max_y * 1.35)  # Set consistent y-axis even for empty plots
+            ax.set_title(target_col.upper(), fontsize=20, fontweight='bold', pad=20)
+            ax.set_ylim(0, global_max_y * 1.35)
             continue
         
         # Calculate category means and use fixed order
@@ -369,7 +385,7 @@ def create_combined_chart(categorization, category_colors, output_dir, global_ma
         fixed_order = get_fixed_category_order()
         category_order = [cat for cat in fixed_order if cat in subcategory_df['main_category'].values]
         
-        # Build the grouped structure with wider spacing
+        # Build the grouped structure
         x_positions = []
         x_labels = []
         bar_colors = []
@@ -377,7 +393,6 @@ def create_combined_chart(categorization, category_colors, output_dir, global_ma
         category_ranges = {}
         
         current_pos = 0
-        bar_width = 1.2  # Increase bar width for combined view
         
         for main_cat in category_order:
             if main_cat not in subcategory_df['main_category'].values:
@@ -393,55 +408,59 @@ def create_combined_chart(categorization, category_colors, output_dir, global_ma
                 x_labels.append(row['subcategory'])
                 bar_colors.append(category_colors[main_cat])
                 bar_values.append(row['correlation'])
-                current_pos += bar_width + 0.2  # Add space between individual bars
+                current_pos += 1
             
             # Store category range for rectangle placement
-            end_pos = current_pos - (bar_width + 0.2)
+            end_pos = current_pos - 1
             category_ranges[main_cat] = (start_pos, end_pos)
             
-            # Add larger spacing between categories
-            current_pos += 1.0
+            # Add spacing between categories
+            current_pos += 0.5
         
-        # Create bars with increased width
-        bars = ax.bar(x_positions, bar_values, width=bar_width, color=bar_colors, alpha=0.8)
+        # Create bars
+        bars = ax.bar(x_positions, bar_values, color=bar_colors, alpha=0.8, zorder=3)
         
-        # Set title with trait name in uppercase - larger fonts for 3x3 layout
-        ax.set_title(target_col.upper(), fontsize=16, fontweight='bold', pad=20)
+        # Set title with trait name in uppercase
+        ax.set_title(target_col.upper(), fontsize=20, fontweight='bold', pad=20)
         
-        # Set x-axis labels with better readability - larger fonts
+        # Set x-axis labels
         ax.set_xticks(x_positions)
-        ax.set_xticklabels(x_labels, rotation=45, ha='right', fontsize=11)
+        ax.set_xticklabels(x_labels, rotation=45, ha='right', fontsize=14)
         
         # Calculate target-specific rankings for this subplot
         target_specific_rankings = calculate_target_specific_subcategory_rankings(target_col, categorization, dataset_name)
         
-        # Add value labels on bars and ranking circles (larger fonts for 3x3 layout)
+        # Add value labels on bars and ranking rectangles
+        text_positions = calculate_simple_text_positions(bars, bar_values)
+        
         for i, (bar, value) in enumerate(zip(bars, bar_values)):
             # Add correlation value label above bar
-            ax.text(bar.get_x() + bar.get_width()/2, bar.get_height() + 0.003,
-                    f'{value:.3f}', ha='center', va='bottom', fontsize=10, fontweight='bold')
+            if i < len(text_positions):
+                pos = text_positions[i]
+                ax.text(pos['x'], pos['y'], f'{value:.3f}', ha='center', va='bottom', 
+                        fontsize=12, fontweight='bold')
+            else:
+                ax.text(bar.get_x() + bar.get_width()/2, bar.get_height() + 0.003,
+                        f'{value:.3f}', ha='center', va='bottom', fontsize=12, fontweight='bold')
             
-            # Add ranking rectangle at the upper portion of the bar
+            # Add ranking rectangle
             subcategory_name = x_labels[i]
             if subcategory_name in target_specific_rankings:
                 rank = target_specific_rankings[subcategory_name]
                 
-                # Calculate rectangle dimensions (smaller width than bar)
-                rect_width = bar.get_width() * 0.7  # 70% of bar width
-                rect_height = 0.015  # Fixed small height for combined view
-                rect_x = bar.get_x() + (bar.get_width() - rect_width) / 2  # Center horizontally
-                rect_y = bar.get_height() - rect_height - 0.003  # Just under the top
+                rect_width = bar.get_width() * 0.7
+                rect_height = 0.015
+                rect_x = bar.get_x() + (bar.get_width() - rect_width) / 2
+                rect_y = bar.get_height() - rect_height - 0.003
                 
-                # Draw white rectangle with black border
                 rectangle = plt.Rectangle((rect_x, rect_y), rect_width, rect_height,
                                         facecolor='white', edgecolor='black', linewidth=1, zorder=15)
                 ax.add_patch(rectangle)
                 
-                # Add rank number inside rectangle (readable font size)
                 text_x = rect_x + rect_width/2
                 text_y = rect_y + rect_height/2
                 ax.text(text_x, text_y, str(rank), ha='center', va='center', 
-                        fontsize=7, fontweight='bold', color='black', zorder=16)
+                        fontsize=10, fontweight='bold', color='black', zorder=16)
         
         # Add category mean rectangles with consistent y-axis range
         ax.set_ylim(0, global_max_y * 1.35)
@@ -451,29 +470,26 @@ def create_combined_chart(categorization, category_colors, output_dir, global_ma
                 start_pos, end_pos = category_ranges[main_cat]
                 mean_val = category_means[main_cat]
                 
-                # Create rectangle with adjusted proportions for wider bars
-                rect_x = start_pos - (bar_width * 0.5)
-                rect_width = (end_pos - start_pos) + bar_width
+                rect_x = start_pos - 0.4
+                rect_width = (end_pos - start_pos) + 0.8
                 rect_y = global_max_y * 1.15
                 rect_height = global_max_y * 0.12
                 
-                # Add rectangle
                 rect = plt.Rectangle((rect_x, rect_y), rect_width, rect_height,
                                    facecolor=category_colors[main_cat], alpha=0.8,
                                    edgecolor='black', linewidth=1.5)
                 ax.add_patch(rect)
                 
-                # Add text label with larger fonts for 3x3 layout
-                wrapped_cat_name = wrap_category_text(main_cat, max_chars_per_line=14)
+                wrapped_cat_name = wrap_category_text(main_cat)
                 ax.text(rect_x + rect_width/2, rect_y + rect_height/2,
                         f'{wrapped_cat_name}\n{mean_val:.3f}', ha='center', va='center', 
-                        fontsize=9, fontweight='bold', color='white')
+                        fontsize=14, fontweight='bold', color='white')
         
         # Add vertical lines to separate main categories
         for i, main_cat in enumerate(category_order[:-1]):
             if main_cat in category_ranges:
                 _, end_pos = category_ranges[main_cat]
-                ax.axvline(x=end_pos + (bar_width * 0.75), color='gray', linestyle='--', alpha=0.5)
+                ax.axvline(x=end_pos + 0.75, color='gray', linestyle='--', alpha=0.5)
         
         ax.grid(axis='y', alpha=0.3)
     
@@ -483,19 +499,24 @@ def create_combined_chart(categorization, category_colors, output_dir, global_ma
     
     # Add single y-axis label for the entire figure
     fig.text(0.03, 0.5, 'Absolute Correlation', va='center', rotation='vertical', 
-             fontsize=16, fontweight='bold')
+             fontsize=20, fontweight='bold')
     
-    # Adjust layout with better spacing for the larger 3x3 figure
-    plt.tight_layout()
-    plt.subplots_adjust(left=0.07, top=0.93, hspace=0.3, wspace=0.25)
+    # Adjust layout with reduced spacing between columns and better title positioning
+    # Use tight_layout with padding to ensure proper margins
+    plt.tight_layout(pad=2.0)
+    plt.subplots_adjust(left=0.05, right=0.95, top=0.93, hspace=0.4, wspace=0.15)
     
-    # Save the combined figure as PDF to preserve all formatting
+    # Save the combined figure as PDF with additional padding
     filename = f"all_targets_combined_{dataset_name}_correlations.pdf"
     filepath = os.path.join(output_dir, filename)
-    plt.savefig(filepath, format='pdf', bbox_inches='tight')
+    plt.savefig(filepath, format='pdf', bbox_inches='tight', dpi=300, pad_inches=0.5)
     plt.close()
     
     print(f"Saved combined chart: {filepath}")
+
+
+
+
 
 def process_dataset(dataset_name, categorization, target_columns, category_colors, aggregation_methods):
     """Process a single dataset and generate all charts for it"""
@@ -559,9 +580,9 @@ def process_dataset(dataset_name, categorization, target_columns, category_color
             # Create bar chart with consistent y-axis and target-specific rankings
             create_bar_chart(target_col, subcategory_df, category_colors, output_dir, global_max_y, categorization, dataset_name, aggregation)
     
-    # Create combined chart with all targets for this dataset
-    print(f"\nGenerating combined chart for {dataset_name}...")
-    create_combined_chart(categorization, category_colors, output_dir, global_max_y, dataset_name, 'mean')
+    # Create combined chart by stitching individual PDF files
+    print(f"\nGenerating combined chart by stitching PDFs for {dataset_name}...")
+    create_combined_chart_from_pdfs(categorization, category_colors, output_dir, dataset_name, 'mean')
     
     print(f"\nAll charts for {dataset_name} saved to: {output_dir}")
     print(f"Generated {len(aggregation_methods) * len(target_columns)} individual charts + 1 combined chart for {dataset_name}")
