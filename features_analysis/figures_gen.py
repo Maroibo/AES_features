@@ -282,10 +282,10 @@ def create_bar_chart(target_col, subcategory_df, category_colors, output_dir, gl
         if subcategory_name in subcategory_rankings:
             rank = subcategory_rankings[subcategory_name]
             
-            # Add rank number directly on the bar with increased white font
+            # Add rank number at the top of the bar with increased white font
             text_x = bar.get_x() + bar.get_width()/2
-            text_y = bar.get_height() * 0.5  # Center vertically on the bar
-            plt.text(text_x, text_y, str(rank), ha='center', va='center', 
+            text_y = bar.get_height() - 0.02  # Position at the top of the bar
+            plt.text(text_x, text_y, str(rank), ha='center', va='bottom', 
                     fontsize=22, fontweight='bold', color='white', zorder=16)
     
     # Add category mean rectangles with consistent y-axis range
@@ -488,8 +488,8 @@ def create_combined_chart_from_pdfs(categorization, category_colors, output_dir,
                 
                 # Add rank number directly on the bar with increased white font
                 text_x = bar.get_x() + bar.get_width()/2
-                text_y = bar.get_height() * 0.5  # Center vertically on the bar
-                ax.text(text_x, text_y, str(rank), ha='center', va='center', 
+                text_y = bar.get_height() - 0.02  # Position at the top of the bar
+                ax.text(text_x, text_y, str(rank), ha='center', va='bottom', 
                         fontsize=22, fontweight='bold', color='white', zorder=16)
         
         # Add category mean rectangles with consistent y-axis range
@@ -687,8 +687,8 @@ def create_three_target_chart(categorization, category_colors, output_dir, aggre
                 
                 # Add rank number directly on the bar with increased white font
                 text_x = bar.get_x() + bar.get_width()/2
-                text_y = bar.get_height() * 0.5  # Center vertically on the bar
-                ax.text(text_x, text_y, str(rank), ha='center', va='center', 
+                text_y = bar.get_height() - 0.018  # Position at the top of the bar
+                ax.text(text_x, text_y, str(rank), ha='center', va='bottom', 
                         fontsize=22, fontweight='bold', color='white', zorder=16)
         
         # Add category mean rectangles with consistent y-axis range
