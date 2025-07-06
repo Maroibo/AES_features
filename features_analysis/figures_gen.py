@@ -23,11 +23,11 @@ def load_categorization():
 def get_category_short_names():
     """Map full category names to shortened versions"""
     return {
-        'Surface features': 'SR-F',
-        'Lexical features': 'LX-F',
-        'Readability measures': 'RD-F',
-        'Semantic features': 'SM-F',
-        'Syntactic features': 'SY-F'
+        'Surface features': 'Surface',
+        'Lexical features': 'Lexical',
+        'Readability measures': 'Readability',
+        'Semantic features': 'Semantic',
+        'Syntactic features': 'Syntactic'
     }
 
 def get_category_colors():
@@ -710,7 +710,7 @@ def create_three_target_chart(categorization, category_colors, output_dir, aggre
                 wrapped_cat_name = wrap_category_text(main_cat)
                 ax.text(rect_x + rect_width/2, rect_y + rect_height/2,
                         f'{wrapped_cat_name}\n{mean_val:.3f}', ha='center', va='center', 
-                        fontsize=14, fontweight='bold', color='white')
+                        fontsize=11, fontweight='bold', color='white')
         
         # Add vertical lines to separate main categories
         for i, main_cat in enumerate(category_order[:-1]):
@@ -726,7 +726,7 @@ def create_three_target_chart(categorization, category_colors, output_dir, aggre
     
     # Adjust layout with more spacing to prevent squishing
     plt.tight_layout(pad=4.0)
-    plt.subplots_adjust(left=0.1, right=0.95, top=0.93, hspace=0.08, wspace=0.08)  # Increased wspace
+    plt.subplots_adjust(left=0.08, right=0.95, top=0.93, hspace=0.4, wspace=0.15)  # Increased wspace
     
     # Save the three-target figure as PDF with additional padding
     filename = f"three_targets_whole_dataset_correlations.pdf"
