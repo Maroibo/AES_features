@@ -572,8 +572,8 @@ def create_three_target_chart(categorization, category_colors, output_dir, aggre
     target_columns = ['holistic', 'relevance', 'organization']
     dataset_name = 'whole_dataset'
     
-    # Create figure with subplots (1 row, 3 columns) - Larger dimensions to avoid squishing
-    fig, axes = plt.subplots(1, 3, figsize=(45, 15))  # Increased dimensions
+    # Create figure with subplots (3 rows, 1 column) - Vertical layout
+    fig, axes = plt.subplots(3, 1, figsize=(15, 45))  # Vertical, tall figure
     
     # Load all data for the chart
     all_subplot_data = []
@@ -616,7 +616,7 @@ def create_three_target_chart(categorization, category_colors, output_dir, aggre
         if subcategory_df is None or subcategory_df.empty:
             ax.text(0.5, 0.5, f"No data for\n{target_col}", ha='center', va='center', transform=ax.transAxes)
             ax.set_title(target_col.upper(), fontsize=20, fontweight='bold', pad=20)
-            ax.set_ylim(0, global_max_y * 1.35)
+            ax.set_ylim(0, 0.4)  # Set chart range to end at 0.4
             continue
         
         # Calculate category means and use fixed order
@@ -673,9 +673,12 @@ def create_three_target_chart(categorization, category_colors, output_dir, aggre
         # Set title with trait name in uppercase
         ax.set_title(target_col.upper(), fontsize=20, fontweight='bold', pad=20)
         
-        # Set x-axis labels
+        # Set x-axis labels - only show labels for the bottom subplot (last one)
         ax.set_xticks(x_positions)
-        ax.set_xticklabels(x_labels, rotation=45, ha='right', fontsize=14)
+        if idx == len(target_columns) - 1:  # Only show labels for the last subplot
+            ax.set_xticklabels(x_labels, rotation=45, ha='right', fontsize=14)
+        else:
+            ax.set_xticklabels([])  # Hide labels for other subplots
         
         # Set y-axis tick label font size (normal size like combined figure)
         ax.tick_params(axis='y', labelsize=16)
@@ -687,14 +690,14 @@ def create_three_target_chart(categorization, category_colors, output_dir, aggre
         text_positions = calculate_simple_text_positions(bars, bar_values)
         
         for i, (bar, value) in enumerate(zip(bars, bar_values)):
-            # Add correlation value label above bar
+            # Add correlation value label above bar - make it vertical with increased font size
             if i < len(text_positions):
                 pos = text_positions[i]
                 ax.text(pos['x'], pos['y'], f'{value:.3f}', ha='center', va='bottom', 
-                        fontsize=12, fontweight='bold')
+                        fontsize=20, fontweight='bold', rotation=90)
             else:
                 ax.text(bar.get_x() + bar.get_width()/2, bar.get_height() + 0.003,
-                        f'{value:.3f}', ha='center', va='bottom', fontsize=12, fontweight='bold')
+                        f'{value:.3f}', ha='center', va='bottom', fontsize=16, fontweight='bold', rotation=90)
             
             # Add ranking rectangle
             subcategory_name = x_labels[i]
@@ -722,17 +725,15 @@ def create_three_target_chart(categorization, category_colors, output_dir, aggre
             if main_cat in category_ranges:
                 start_pos, end_pos = category_ranges[main_cat]
                 mean_val = category_means[main_cat]
-                
                 rect_x = start_pos - 0.4
                 rect_width = (end_pos - start_pos) + 0.8
-                rect_y = global_max_y * 1.15
-                rect_height = global_max_y * 0.12
-                
+                # Move rectangles to the very top (95% of 0.4 range)
+                rect_y = 0.4 * 0.98
+                rect_height = 0.4 * 0.06  # Smaller height (8% of the 0.4 range)
                 rect = plt.Rectangle((rect_x, rect_y), rect_width, rect_height,
                                    facecolor=category_colors[main_cat], alpha=0.8,
                                    edgecolor='black', linewidth=1.5)
                 ax.add_patch(rect)
-                
                 wrapped_cat_name = wrap_category_text(main_cat)
                 ax.text(rect_x + rect_width/2, rect_y + rect_height/2,
                         f'{wrapped_cat_name}\n{mean_val:.3f}', ha='center', va='center', 
@@ -752,7 +753,7 @@ def create_three_target_chart(categorization, category_colors, output_dir, aggre
     
     # Adjust layout with more spacing to prevent squishing
     plt.tight_layout(pad=4.0)
-    plt.subplots_adjust(left=0.08, right=0.95, top=0.93, hspace=0.4, wspace=0.15)  # Increased wspace
+    plt.subplots_adjust(left=0.1, right=0.95, top=0.93, hspace=0.08, wspace=0.08)  # Increased wspace
     
     # Save the three-target figure as PDF with additional padding
     filename = f"three_targets_whole_dataset_correlations.pdf"
