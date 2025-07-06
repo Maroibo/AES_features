@@ -50,6 +50,40 @@ def get_fixed_category_order():
         'Syntactic features'
     ]
 
+def get_fixed_subcategory_order():
+    """Define fixed order for subcategories (consistent across all charts)"""
+    return {
+        'Surface features': [
+            'Character-based',
+            'Word-based',
+            'Sentence-based',
+            'Paragraph-based'
+        ],
+        'Lexical features': [
+            'Dialect',
+            'Paragraph keywords',
+            'N-gram',
+            'Punctuation'
+        ],
+        'Readability measures': [
+            'Arabic',
+            'English'
+        ],
+        'Semantic features': [
+            'Prompt adherence',
+            'Sentiment',
+            'Text similarity'
+        ],
+        'Syntactic features': [
+            'Arabic grammetical',
+            'Discourse connectives',
+            'POS bigrams',
+            'POS tags',
+            'Pronoun',
+            'Sentence structure'
+        ]
+    }
+
 def get_csv_filename(target_col, dataset_name):
     """Generate appropriate CSV filename based on dataset"""
     if dataset_name == "whole_dataset":
@@ -187,8 +221,14 @@ def create_bar_chart(target_col, subcategory_df, category_colors, output_dir, gl
         category_positions[main_cat] = current_pos
         start_pos = current_pos
         
-        # Add subcategory bars for this main category
-        cat_data = subcategory_df[subcategory_df['main_category'] == main_cat].sort_values('correlation', ascending=False)
+        # Add subcategory bars for this main category using fixed order
+        cat_data = subcategory_df[subcategory_df['main_category'] == main_cat]
+        # Sort by fixed subcategory order instead of correlation
+        fixed_subcategory_order = get_fixed_subcategory_order()
+        if main_cat in fixed_subcategory_order:
+            # Create a mapping for sorting
+            order_mapping = {subcat: idx for idx, subcat in enumerate(fixed_subcategory_order[main_cat])}
+            cat_data = cat_data.sort_values('subcategory', key=lambda x: x.map(order_mapping))
         
         for _, row in cat_data.iterrows():
             x_positions.append(current_pos)
@@ -400,8 +440,14 @@ def create_combined_chart_from_pdfs(categorization, category_colors, output_dir,
                 
             start_pos = current_pos
             
-            # Add subcategory bars for this main category
-            cat_data = subcategory_df[subcategory_df['main_category'] == main_cat].sort_values('correlation', ascending=False)
+            # Add subcategory bars for this main category using fixed order
+            cat_data = subcategory_df[subcategory_df['main_category'] == main_cat]
+            # Sort by fixed subcategory order instead of correlation
+            fixed_subcategory_order = get_fixed_subcategory_order()
+            if main_cat in fixed_subcategory_order:
+                # Create a mapping for sorting
+                order_mapping = {subcat: idx for idx, subcat in enumerate(fixed_subcategory_order[main_cat])}
+                cat_data = cat_data.sort_values('subcategory', key=lambda x: x.map(order_mapping))
             
             for _, row in cat_data.iterrows():
                 x_positions.append(current_pos)
@@ -518,6 +564,205 @@ def create_combined_chart_from_pdfs(categorization, category_colors, output_dir,
     print(f"Saved combined chart: {filepath}")
 
 
+def create_three_target_chart(categorization, category_colors, output_dir, aggregation='mean'):
+    """
+    Create a 1-row chart with 3 target columns (holistic, relevance, organization) for whole dataset only
+    This version uses individual subplot rendering like the combined figure to avoid squishing
+    """
+    target_columns = ['holistic', 'relevance', 'organization']
+    dataset_name = 'whole_dataset'
+    
+    # Create figure with subplots (1 row, 3 columns) - Larger dimensions to avoid squishing
+    fig, axes = plt.subplots(1, 3, figsize=(45, 15))  # Increased dimensions
+    
+    # Load all data for the chart
+    all_subplot_data = []
+    
+    for idx, target_col in enumerate(target_columns):
+        # Load correlation data
+        csv_filename = get_csv_filename(target_col, dataset_name)
+        csv_path = f"../output/{dataset_name}/{csv_filename}"
+        
+        if not os.path.exists(csv_path):
+            all_subplot_data.append(None)
+            continue
+        
+        # Read correlation data
+        df = pd.read_csv(csv_path)
+        
+        # Aggregate correlations by subcategory
+        subcategory_df = aggregate_correlations_by_subcategory(df, categorization, aggregation)
+        
+        if not subcategory_df.empty:
+            all_subplot_data.append(subcategory_df)
+        else:
+            all_subplot_data.append(None)
+    
+    # Calculate global max for consistent y-axis
+    all_max_values = []
+    for subcategory_df in all_subplot_data:
+        if subcategory_df is not None and not subcategory_df.empty:
+            all_max_values.append(subcategory_df['correlation'].max())
+    
+    global_max_y = max(all_max_values) if all_max_values else 1.0
+    
+    # Create the actual plots with consistent y-axis
+    for idx, target_col in enumerate(target_columns):
+        ax = axes[idx]
+        
+        # Use pre-computed data
+        subcategory_df = all_subplot_data[idx]
+        
+        if subcategory_df is None or subcategory_df.empty:
+            ax.text(0.5, 0.5, f"No data for\n{target_col}", ha='center', va='center', transform=ax.transAxes)
+            ax.set_title(target_col.upper(), fontsize=20, fontweight='bold', pad=20)
+            ax.set_ylim(0, global_max_y * 1.35)
+            continue
+        
+        # Calculate category means and use fixed order
+        category_means = {}
+        for main_cat in subcategory_df['main_category'].unique():
+            cat_data = subcategory_df[subcategory_df['main_category'] == main_cat]
+            category_means[main_cat] = cat_data['correlation'].mean()
+        
+        # Use fixed category order (consistent across all charts)
+        fixed_order = get_fixed_category_order()
+        category_order = [cat for cat in fixed_order if cat in subcategory_df['main_category'].values]
+        
+        # Build the grouped structure
+        x_positions = []
+        x_labels = []
+        bar_colors = []
+        bar_values = []
+        category_ranges = {}
+        
+        current_pos = 0
+        
+        for main_cat in category_order:
+            if main_cat not in subcategory_df['main_category'].values:
+                continue
+                
+            start_pos = current_pos
+            
+            # Add subcategory bars for this main category using fixed order
+            cat_data = subcategory_df[subcategory_df['main_category'] == main_cat]
+            # Sort by fixed subcategory order instead of correlation
+            fixed_subcategory_order = get_fixed_subcategory_order()
+            if main_cat in fixed_subcategory_order:
+                # Create a mapping for sorting
+                order_mapping = {subcat: idx for idx, subcat in enumerate(fixed_subcategory_order[main_cat])}
+                cat_data = cat_data.sort_values('subcategory', key=lambda x: x.map(order_mapping))
+            
+            for _, row in cat_data.iterrows():
+                x_positions.append(current_pos)
+                x_labels.append(row['subcategory'])
+                bar_colors.append(category_colors[main_cat])
+                bar_values.append(row['correlation'])
+                current_pos += 1
+            
+            # Store category range for rectangle placement
+            end_pos = current_pos - 1
+            category_ranges[main_cat] = (start_pos, end_pos)
+            
+            # Add spacing between categories
+            current_pos += 0.5
+        
+        # Create bars
+        bars = ax.bar(x_positions, bar_values, color=bar_colors, alpha=0.8, zorder=3)
+        
+        # Set title with trait name in uppercase
+        ax.set_title(target_col.upper(), fontsize=20, fontweight='bold', pad=20)
+        
+        # Set x-axis labels
+        ax.set_xticks(x_positions)
+        ax.set_xticklabels(x_labels, rotation=45, ha='right', fontsize=14)
+        
+        # Set y-axis tick label font size (normal size like combined figure)
+        ax.tick_params(axis='y', labelsize=16)
+        
+        # Calculate target-specific rankings for this subplot
+        target_specific_rankings = calculate_target_specific_subcategory_rankings(target_col, categorization, dataset_name)
+        
+        # Add value labels on bars and ranking rectangles
+        text_positions = calculate_simple_text_positions(bars, bar_values)
+        
+        for i, (bar, value) in enumerate(zip(bars, bar_values)):
+            # Add correlation value label above bar
+            if i < len(text_positions):
+                pos = text_positions[i]
+                ax.text(pos['x'], pos['y'], f'{value:.3f}', ha='center', va='bottom', 
+                        fontsize=12, fontweight='bold')
+            else:
+                ax.text(bar.get_x() + bar.get_width()/2, bar.get_height() + 0.003,
+                        f'{value:.3f}', ha='center', va='bottom', fontsize=12, fontweight='bold')
+            
+            # Add ranking rectangle
+            subcategory_name = x_labels[i]
+            if subcategory_name in target_specific_rankings:
+                rank = target_specific_rankings[subcategory_name]
+                
+                rect_width = bar.get_width() * 0.7
+                rect_height = 0.015
+                rect_x = bar.get_x() + (bar.get_width() - rect_width) / 2
+                rect_y = bar.get_height() - rect_height - 0.003
+                
+                rectangle = plt.Rectangle((rect_x, rect_y), rect_width, rect_height,
+                                        facecolor='white', edgecolor='black', linewidth=1, zorder=15)
+                ax.add_patch(rectangle)
+                
+                text_x = rect_x + rect_width/2
+                text_y = rect_y + rect_height/2
+                ax.text(text_x, text_y, str(rank), ha='center', va='center', 
+                        fontsize=10, fontweight='bold', color='black', zorder=16)
+        
+        # Add category mean rectangles with consistent y-axis range
+        ax.set_ylim(0, global_max_y * 1.35)
+        
+        for main_cat in category_order:
+            if main_cat in category_ranges:
+                start_pos, end_pos = category_ranges[main_cat]
+                mean_val = category_means[main_cat]
+                
+                rect_x = start_pos - 0.4
+                rect_width = (end_pos - start_pos) + 0.8
+                rect_y = global_max_y * 1.15
+                rect_height = global_max_y * 0.12
+                
+                rect = plt.Rectangle((rect_x, rect_y), rect_width, rect_height,
+                                   facecolor=category_colors[main_cat], alpha=0.8,
+                                   edgecolor='black', linewidth=1.5)
+                ax.add_patch(rect)
+                
+                wrapped_cat_name = wrap_category_text(main_cat)
+                ax.text(rect_x + rect_width/2, rect_y + rect_height/2,
+                        f'{wrapped_cat_name}\n{mean_val:.3f}', ha='center', va='center', 
+                        fontsize=14, fontweight='bold', color='white')
+        
+        # Add vertical lines to separate main categories
+        for i, main_cat in enumerate(category_order[:-1]):
+            if main_cat in category_ranges:
+                _, end_pos = category_ranges[main_cat]
+                ax.axvline(x=end_pos + 0.75, color='gray', linestyle='--', alpha=0.5)
+        
+        ax.grid(axis='y', alpha=0.3)
+    
+    # Add single y-axis label for the entire figure (same font size as combined figure)
+    fig.text(0.03, 0.5, 'Absolute Correlation', va='center', rotation='vertical', 
+             fontsize=25, fontweight='bold')
+    
+    # Adjust layout with more spacing to prevent squishing
+    plt.tight_layout(pad=4.0)
+    plt.subplots_adjust(left=0.08, right=0.95, top=0.93, hspace=0.4, wspace=0.15)  # Increased wspace
+    
+    # Save the three-target figure as PDF with additional padding
+    filename = f"three_targets_whole_dataset_correlations.pdf"
+    filepath = os.path.join(output_dir, filename)
+    plt.savefig(filepath, format='pdf', bbox_inches='tight', dpi=300, pad_inches=0.5)
+    plt.close()
+    
+    print(f"Saved three-target chart: {filepath}")
+
+
 
 
 
@@ -629,6 +874,17 @@ def main():
         
         # Process this dataset
         process_dataset(dataset_name, categorization, target_columns, category_colors, aggregation_methods)
+    
+    # Create three-target chart for whole dataset separately
+    print(f"\n{'='*60}")
+    print(f"Generating three-target chart for whole dataset")
+    print(f"{'='*60}")
+    whole_dataset_output_dir = f"../output/figures/whole_dataset"
+    if os.path.exists(whole_dataset_output_dir):
+        create_three_target_chart(categorization, category_colors, whole_dataset_output_dir, 'mean')
+        print(f"Three-target chart saved to: {whole_dataset_output_dir}")
+    else:
+        print(f"Whole dataset output directory not found: {whole_dataset_output_dir}")
     
     # Print final summary
     print(f"\n{'='*80}")
