@@ -726,7 +726,7 @@ def create_three_target_chart(categorization, category_colors, output_dir, aggre
     
     # Adjust layout with more spacing to prevent squishing
     plt.tight_layout(pad=4.0)
-    plt.subplots_adjust(left=0.08, right=0.95, top=0.93, hspace=0.4, wspace=0.15)  # Increased wspace
+    plt.subplots_adjust(left=0.1, right=0.95, top=0.93, hspace=0.4, wspace=0.15)  # Increased wspace
     
     # Save the three-target figure as PDF with additional padding
     filename = f"three_targets_whole_dataset_correlations.pdf"
