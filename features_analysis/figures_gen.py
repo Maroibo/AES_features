@@ -488,7 +488,7 @@ def create_combined_chart_from_pdfs(categorization, category_colors, output_dir,
                 
                 # Add rank number directly on the bar with increased white font
                 text_x = bar.get_x() + bar.get_width()/2
-                text_y = bar.get_height() - 0.02  # Position at the top of the bar
+                text_y = bar.get_height() - 0.029  # Position at the top of the bar
                 ax.text(text_x, text_y, str(rank), ha='center', va='bottom', 
                         fontsize=22, fontweight='bold', color='white', zorder=16)
         
