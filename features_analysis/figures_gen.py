@@ -427,6 +427,9 @@ def create_combined_chart_from_pdfs(categorization, category_colors, output_dir,
         ax.set_xticks(x_positions)
         ax.set_xticklabels(x_labels, rotation=45, ha='right', fontsize=14)
         
+        # Set y-axis tick label font size
+        ax.tick_params(axis='y', labelsize=16)
+        
         # Calculate target-specific rankings for this subplot
         target_specific_rankings = calculate_target_specific_subcategory_rankings(target_col, categorization, dataset_name)
         
@@ -499,12 +502,12 @@ def create_combined_chart_from_pdfs(categorization, category_colors, output_dir,
     
     # Add single y-axis label for the entire figure
     fig.text(0.03, 0.5, 'Absolute Correlation', va='center', rotation='vertical', 
-             fontsize=20, fontweight='bold')
+             fontsize=60, fontweight='bold')
     
     # Adjust layout with reduced spacing between columns and better title positioning
     # Use tight_layout with padding to ensure proper margins
-    plt.tight_layout(pad=2.0)
-    plt.subplots_adjust(left=0.05, right=0.95, top=0.93, hspace=0.4, wspace=0.15)
+    plt.tight_layout(pad=4.0)
+    plt.subplots_adjust(left=0.08, right=0.95, top=0.93, hspace=0.4, wspace=0.08)
     
     # Save the combined figure as PDF with additional padding
     filename = f"all_targets_combined_{dataset_name}_correlations.pdf"
