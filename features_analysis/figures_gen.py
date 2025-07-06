@@ -277,27 +277,16 @@ def create_bar_chart(target_col, subcategory_df, category_colors, output_dir, gl
             plt.text(bar.get_x() + bar.get_width()/2, bar.get_height() + 0.003,
                     f'{value:.3f}', ha='center', va='bottom', fontsize=10, fontweight='bold')
         
-        # Add ranking rectangle at the upper portion of the bar
+        # Add ranking number directly on the bar
         subcategory_name = x_labels[i]
         if subcategory_name in subcategory_rankings:
             rank = subcategory_rankings[subcategory_name]
             
-            # Calculate rectangle dimensions (smaller width than bar)
-            rect_width = bar.get_width() * 0.7  # 70% of bar width
-            rect_height = 0.018  # Fixed small height
-            rect_x = bar.get_x() + (bar.get_width() - rect_width) / 2  # Center horizontally
-            rect_y = bar.get_height() - rect_height - 0.003  # Just under the top
-            
-            # Draw white rectangle with black border
-            rectangle = plt.Rectangle((rect_x, rect_y), rect_width, rect_height,
-                                    facecolor='white', edgecolor='white', linewidth=1, zorder=15)
-            plt.gca().add_patch(rectangle)
-            
-            # Add rank number inside rectangle (readable font size)
-            text_x = rect_x + rect_width/2
-            text_y = rect_y + rect_height/2
+            # Add rank number directly on the bar with increased white font
+            text_x = bar.get_x() + bar.get_width()/2
+            text_y = bar.get_height() * 0.5  # Center vertically on the bar
             plt.text(text_x, text_y, str(rank), ha='center', va='center', 
-                    fontsize=8, fontweight='bold', color='black', zorder=16)
+                    fontsize=22, fontweight='bold', color='white', zorder=16)
     
     # Add category mean rectangles with consistent y-axis range
     # Set y-axis limit to be consistent across all charts
@@ -492,24 +481,16 @@ def create_combined_chart_from_pdfs(categorization, category_colors, output_dir,
                 ax.text(bar.get_x() + bar.get_width()/2, bar.get_height() + 0.003,
                         f'{value:.3f}', ha='center', va='bottom', fontsize=12, fontweight='bold')
             
-            # Add ranking rectangle
+            # Add ranking number directly on the bar
             subcategory_name = x_labels[i]
             if subcategory_name in target_specific_rankings:
                 rank = target_specific_rankings[subcategory_name]
                 
-                rect_width = bar.get_width() * 0.7
-                rect_height = 0.015
-                rect_x = bar.get_x() + (bar.get_width() - rect_width) / 2
-                rect_y = bar.get_height() - rect_height - 0.003
-                
-                rectangle = plt.Rectangle((rect_x, rect_y), rect_width, rect_height,
-                                        facecolor='white', edgecolor='black', linewidth=1, zorder=15)
-                ax.add_patch(rectangle)
-                
-                text_x = rect_x + rect_width/2
-                text_y = rect_y + rect_height/2
+                # Add rank number directly on the bar with increased white font
+                text_x = bar.get_x() + bar.get_width()/2
+                text_y = bar.get_height() * 0.5  # Center vertically on the bar
                 ax.text(text_x, text_y, str(rank), ha='center', va='center', 
-                        fontsize=10, fontweight='bold', color='black', zorder=16)
+                        fontsize=22, fontweight='bold', color='white', zorder=16)
         
         # Add category mean rectangles with consistent y-axis range
         ax.set_ylim(0, global_max_y * 1.35)
@@ -699,24 +680,16 @@ def create_three_target_chart(categorization, category_colors, output_dir, aggre
                 ax.text(bar.get_x() + bar.get_width()/2, bar.get_height() + 0.003,
                         f'{value:.3f}', ha='center', va='bottom', fontsize=16, fontweight='bold', rotation=90)
             
-            # Add ranking rectangle
+            # Add ranking number directly on the bar
             subcategory_name = x_labels[i]
             if subcategory_name in target_specific_rankings:
                 rank = target_specific_rankings[subcategory_name]
                 
-                rect_width = bar.get_width() * 0.7
-                rect_height = 0.015
-                rect_x = bar.get_x() + (bar.get_width() - rect_width) / 2
-                rect_y = bar.get_height() - rect_height - 0.003
-                
-                rectangle = plt.Rectangle((rect_x, rect_y), rect_width, rect_height,
-                                        facecolor='white', edgecolor='black', linewidth=1, zorder=15)
-                ax.add_patch(rectangle)
-                
-                text_x = rect_x + rect_width/2
-                text_y = rect_y + rect_height/2
+                # Add rank number directly on the bar with increased white font
+                text_x = bar.get_x() + bar.get_width()/2
+                text_y = bar.get_height() * 0.5  # Center vertically on the bar
                 ax.text(text_x, text_y, str(rank), ha='center', va='center', 
-                        fontsize=10, fontweight='bold', color='black', zorder=16)
+                        fontsize=22, fontweight='bold', color='white', zorder=16)
         
         # Add category mean rectangles with consistent y-axis range
         ax.set_ylim(0, global_max_y * 1.35)
@@ -728,7 +701,7 @@ def create_three_target_chart(categorization, category_colors, output_dir, aggre
                 rect_x = start_pos - 0.4
                 rect_width = (end_pos - start_pos) + 0.8
                 # Move rectangles to the very top (95% of 0.4 range)
-                rect_y = 0.4 * 0.98
+                rect_y = 0.4 * 0.9
                 rect_height = 0.4 * 0.06  # Smaller height (8% of the 0.4 range)
                 rect = plt.Rectangle((rect_x, rect_y), rect_width, rect_height,
                                    facecolor=category_colors[main_cat], alpha=0.8,
