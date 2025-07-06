@@ -597,7 +597,7 @@ def create_three_target_chart(categorization, category_colors, output_dir, aggre
         if subcategory_df is None or subcategory_df.empty:
             ax.text(0.5, 0.5, f"No data for\n{target_col}", ha='center', va='center', transform=ax.transAxes)
             ax.set_title(target_col.upper(), fontsize=20, fontweight='bold', pad=20)
-            ax.set_ylim(0, 0.4)  # Set chart range to end at 0.4
+            ax.set_ylim(0, 0.4)  # Set chart range to end at exactly 0.4
             continue
         
         # Calculate category means and use fixed order
@@ -692,7 +692,7 @@ def create_three_target_chart(categorization, category_colors, output_dir, aggre
                         fontsize=22, fontweight='bold', color='white', zorder=16)
         
         # Add category mean rectangles with consistent y-axis range
-        ax.set_ylim(0, global_max_y * 1.35)
+        ax.set_ylim(0, 0.4)  # Set chart range to end at exactly 0.4
         
         for main_cat in category_order:
             if main_cat in category_ranges:
