@@ -25,7 +25,7 @@ def get_category_short_names():
     return {
         'Surface features': 'Surface',
         'Lexical features': 'Lexical',
-        'Readability measures': 'Readability',
+        'Readability measures': 'Read',
         'Semantic features': 'Semantic',
         'Syntactic features': 'Syntactic'
     }
@@ -710,7 +710,7 @@ def create_three_target_chart(categorization, category_colors, output_dir, aggre
                 wrapped_cat_name = wrap_category_text(main_cat)
                 ax.text(rect_x + rect_width/2, rect_y + rect_height/2,
                         f'{wrapped_cat_name}\n{mean_val:.3f}', ha='center', va='center', 
-                        fontsize=11, fontweight='bold', color='white')
+                        fontsize=21, fontweight='bold', color='white')
         
         # Add vertical lines to separate main categories
         for i, main_cat in enumerate(category_order[:-1]):
