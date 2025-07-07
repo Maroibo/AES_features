@@ -554,7 +554,7 @@ def create_three_target_chart(categorization, category_colors, output_dir, aggre
     dataset_name = 'whole_dataset'
     
     # Create figure with subplots (3 rows, 1 column) - Vertical layout
-    fig, axes = plt.subplots(3, 1, figsize=(15, 45), gridspec_kw={'height_ratios': [1, 0.5, 1]})  # Make relevance subplot smaller
+    fig, axes = plt.subplots(3, 1, figsize=(15, 30), gridspec_kw={'height_ratios': [1, 0.5, 1]})  # Make relevance subplot smaller
     
     # Load all data for the chart
     all_subplot_data = []
@@ -706,11 +706,11 @@ def create_three_target_chart(categorization, category_colors, output_dir, aggre
                 # Move rectangles to the very top (95% of 0.4 range)
 
                 if target_col == 'relevance':
-                    rect_y = 0.2 * 0.84
-                    rect_height = 0.2 * 0.098  # Smaller height (8% of the 0.4 range)
+                    rect_y = 0.2 * 0.78
+                    rect_height = 0.2 * 0.16  # Smaller height (8% of the 0.4 range)
                 else:
                     rect_y = 0.4 * 0.9
-                    rect_height = 0.4 * 0.06  # Smaller height (8% of the 0.4 range)
+                    rect_height = 0.4 * 0.07  # Smaller height (8% of the 0.4 range)
                 rect = plt.Rectangle((rect_x, rect_y), rect_width, rect_height,
                                    facecolor=category_colors[main_cat], alpha=0.8,
                                    edgecolor='black', linewidth=1.5)
@@ -734,7 +734,7 @@ def create_three_target_chart(categorization, category_colors, output_dir, aggre
     
     # Adjust layout with more spacing to prevent squishing
     plt.tight_layout(pad=4.0)
-    plt.subplots_adjust(left=0.1, right=0.95, top=0.93, hspace=0.08, wspace=0.15)  # Increased wspace
+    plt.subplots_adjust(left=0.12, right=0.95, top=0.93, hspace=0.08, wspace=0.15)  # Increased wspace
     
     # Save the three-target figure as PDF with additional padding
     filename = f"three_targets_whole_dataset_correlations.pdf"
