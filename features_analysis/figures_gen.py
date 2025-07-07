@@ -554,7 +554,7 @@ def create_three_target_chart(categorization, category_colors, output_dir, aggre
     dataset_name = 'whole_dataset'
     
     # Create figure with subplots (3 rows, 1 column) - Vertical layout
-    fig, axes = plt.subplots(3, 1, figsize=(15, 45))  # Vertical, tall figure
+    fig, axes = plt.subplots(3, 1, figsize=(15, 45), gridspec_kw={'height_ratios': [1, 0.5, 1]})  # Make relevance subplot smaller
     
     # Load all data for the chart
     all_subplot_data = []
@@ -692,7 +692,10 @@ def create_three_target_chart(categorization, category_colors, output_dir, aggre
                         fontsize=22, fontweight='bold', color='white', zorder=16)
         
         # Add category mean rectangles with consistent y-axis range
-        ax.set_ylim(0, 0.4)  # Set chart range to end at exactly 0.4
+        if target_col == 'relevance':
+            ax.set_ylim(0, 0.2)
+        else:
+            ax.set_ylim(0, 0.4)
         
         for main_cat in category_order:
             if main_cat in category_ranges:
@@ -701,8 +704,13 @@ def create_three_target_chart(categorization, category_colors, output_dir, aggre
                 rect_x = start_pos - 0.4
                 rect_width = (end_pos - start_pos) + 0.8
                 # Move rectangles to the very top (95% of 0.4 range)
-                rect_y = 0.4 * 0.9
-                rect_height = 0.4 * 0.06  # Smaller height (8% of the 0.4 range)
+
+                if target_col == 'relevance':
+                    rect_y = 0.2 * 0.84
+                    rect_height = 0.2 * 0.098  # Smaller height (8% of the 0.4 range)
+                else:
+                    rect_y = 0.4 * 0.9
+                    rect_height = 0.4 * 0.06  # Smaller height (8% of the 0.4 range)
                 rect = plt.Rectangle((rect_x, rect_y), rect_width, rect_height,
                                    facecolor=category_colors[main_cat], alpha=0.8,
                                    edgecolor='black', linewidth=1.5)
