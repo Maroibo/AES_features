@@ -694,8 +694,9 @@ def create_three_target_chart(categorization, category_colors, output_dir, aggre
         # Add category mean rectangles with consistent y-axis range
         if target_col == 'relevance':
             ax.set_ylim(0, 0.2)
+            ax.set_yticks([0, 0.05, 0.1, 0.15, 0.2])  # Same number of ticks as others
         else:
-            ax.set_ylim(0, 0.4)
+            ax.set_ylim(0, 0.4)  # Same number of ticks as relevance
         
         for main_cat in category_order:
             if main_cat in category_ranges:
