@@ -252,7 +252,10 @@ def create_bar_chart(target_col, subcategory_df, category_colors, output_dir, gl
     bars = plt.bar(x_positions, bar_values, color=bar_colors, alpha=0.8, zorder=3)
     
     # Customize the plot with target name in uppercase and dataset name
-    title = f"{target_col.upper()} - {dataset_name.replace('_', ' ').title()}"
+    if dataset_name == 'whole_dataset':
+        title = f"{target_col.upper()}"
+    else:
+        title = f"{target_col.upper()} - {dataset_name.replace('_', ' ').title()}"
     plt.title(title, fontsize=16, fontweight='bold')
     plt.ylabel('Absolute Correlation', fontsize=12)
     
