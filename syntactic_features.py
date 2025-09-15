@@ -498,11 +498,11 @@ def calculate_clause_features(essay):
             leaf_depths.append(1)
                 
     # Calculate final metrics with error handling
-    mean_clause = sum(clause_lengths) / len(clause_lengths) 
-    clause_per_s = sum(clauses_per_sentence) / len(sentences) 
-    sent_ave_depth = sum(sentence_depths) / len(sentences) 
-    ave_leaf_depth = sum(leaf_depths) / len(leaf_depths)
-    max_clause_in_s = max(clauses_per_sentence) 
+    mean_clause = sum(clause_lengths) / len(clause_lengths) if len(clause_lengths) > 0 else 0
+    clause_per_s = sum(clauses_per_sentence) / len(sentences) if len(sentences) > 0 else 0
+    sent_ave_depth = sum(sentence_depths) / len(sentences) if len(sentences) > 0 else 0
+    ave_leaf_depth = sum(leaf_depths) / len(leaf_depths) if len(leaf_depths) > 0 else 0
+    max_clause_in_s = max(clauses_per_sentence) if clauses_per_sentence else 0 
     
     return {
         "mean_clause": mean_clause,

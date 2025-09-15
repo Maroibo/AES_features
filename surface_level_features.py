@@ -590,17 +590,17 @@ def extract_surface_features(essay,intro_paragraph,body_paragraph,conclusion_par
     if essay.strip() != '':
         words = split_into_words(essay)
         words_count = len(words)
-        log_words_count = math.log10(words_count)
+        log_words_count = math.log10(words_count) if words_count > 0 else 0
         unique_words = set(words)
         unique_words_count = len(unique_words) #the set() removes duplicates
-        log_unique_words_count = math.log10(unique_words_count)
+        log_unique_words_count = math.log10(unique_words_count) if unique_words_count > 0 else 0
         total_word_length = sum(len(word) for word in unique_words)#for unique words
         average_word_length = total_word_length / unique_words_count if unique_words_count > 0 else 0
-        max_length_word = max(len(word) for word in unique_words)
-        min_length_word = min(len(word) for word in unique_words)
+        max_length_word = max(len(word) for word in unique_words) if unique_words else 0
+        min_length_word = min(len(word) for word in unique_words) if unique_words else 0
         squared_diffs_words = [(len(word) - average_word_length) ** 2 for word in unique_words]
-        mean_squared_diffs_words = sum(squared_diffs_words) / len(squared_diffs_words)
-        standard_deviation_words= math.sqrt(mean_squared_diffs_words) #the standard deviation as a way to understand how much individual values within a group differ from the average value of that group
+        mean_squared_diffs_words = sum(squared_diffs_words) / len(squared_diffs_words) if len(squared_diffs_words) > 0 else 0
+        standard_deviation_words= math.sqrt(mean_squared_diffs_words) if mean_squared_diffs_words > 0 else 0 #the standard deviation as a way to understand how much individual values within a group differ from the average value of that group
 
         #General counts
         chars_count = len(essay.replace(" ", "")) #not counting spaces
@@ -622,22 +622,22 @@ def extract_surface_features(essay,intro_paragraph,body_paragraph,conclusion_par
         #Paragraphs
         paragraphs = [p for p in [intro_paragraph, body_paragraph, conclusion_paragraph] if p.strip() != '']
         paragraphs_count =len(paragraphs)  #num_paragraphs = len(essay.split('\n')) #Number of paragraphs (F3)
-        is_first_paragraph_less_than_or_equal_to_10 = int(len(split_into_words(paragraphs[0])) <= 10 )#(F16)
+        is_first_paragraph_less_than_or_equal_to_10 = int(len(split_into_words(paragraphs[0])) <= 10) if paragraphs else 0 #(F16)
         paragraphs_lengths = [len(split_into_words(paragraph)) for paragraph in paragraphs] #length of each paragraph interms of words
-        average_length_paragraph = sum(paragraphs_lengths)/ paragraphs_count# Average length of paragraph (F11)
-        max_length_paragraph = max(paragraphs_lengths) # Maximum length of paragraph (F12)
-        min_length_paragraph = min(paragraphs_lengths) # Minimum length of paragraph (F13)
+        average_length_paragraph = sum(paragraphs_lengths)/ paragraphs_count if paragraphs_count > 0 else 0 # Average length of paragraph (F11)
+        max_length_paragraph = max(paragraphs_lengths) if paragraphs_lengths else 0 # Maximum length of paragraph (F12)
+        min_length_paragraph = min(paragraphs_lengths) if paragraphs_lengths else 0 # Minimum length of paragraph (F13)
     if essay.strip() != '':
         #Sentences
         sentences = split_into_sentences(essay)
         sentences_count = len(sentences) # Number of sentences (F5)
         sentence_lengths = [len(split_into_words(sentence)) for sentence in sentences]
-        average_length_sentence = sum(sentence_lengths) / sentences_count    # Average length of sentence (F10)
-        max_length_sentence = max(sentence_lengths) # Maximum length of sentence 
-        min_length_sentence = min(sentence_lengths)# Minimum length of sentence 
+        average_length_sentence = sum(sentence_lengths) / sentences_count if sentences_count > 0 else 0    # Average length of sentence (F10)
+        max_length_sentence = max(sentence_lengths) if sentence_lengths else 0 # Maximum length of sentence 
+        min_length_sentence = min(sentence_lengths) if sentence_lengths else 0 # Minimum length of sentence 
         squared_diff_sentence = [(length - average_length_sentence) ** 2 for length in sentence_lengths]
-        mean_squared_diff_sentence = np.mean(squared_diff_sentence)
-        standard_deviation_sentence = np.sqrt(mean_squared_diff_sentence)  
+        mean_squared_diff_sentence = np.mean(squared_diff_sentence) if len(squared_diff_sentence) > 0 else 0
+        standard_deviation_sentence = np.sqrt(mean_squared_diff_sentence) if mean_squared_diff_sentence > 0 else 0  
     else:
         sentences_count = 0
         average_length_sentence = 0

@@ -39,7 +39,7 @@ def calculate_sentiment_scores(essay):
     for i in range(0, total_sentences, batch_size):
         batch = sentences[i:i + batch_size]
         # Get sentiment predictions for the batch
-        sentiments = sentiment_analyzer(batch)
+        sentiments = sentiment_analyzer(batch, truncation=True, max_length=512)
         
         # Process each sentiment prediction
         for sentiment in sentiments:
@@ -62,18 +62,22 @@ def calculate_sentiment_scores(essay):
                 neutral_confidence += sentiment['score']
                 # neutral_count += 1   
     # Calculate overall scores (proportion of each sentiment type)
-    positive_sentence_prop = sum(positive_scores) / total_sentences
-    neutral_sentence_prop = sum(negative_scores) / total_sentences
-    negative_sentence_prop = sum(neutral_scores) / total_sentences
-    
-    # Calculate proportions (should sum to 1.0)
-    # positive_sentence_prop = positive_count / total_sentences
-    # neutral_sentence_prop = neutral_count / total_sentences
-    # negative_sentence_prop = negative_count / total_sentences
-
-    overall_positivity = positive_confidence / total_sentences
-    overall_negativity = negative_confidence / total_sentences
-    overall_neutrality = neutral_confidence / total_sentences
+    if total_sentences > 0:
+        positive_sentence_prop = sum(positive_scores) / total_sentences
+        neutral_sentence_prop = sum(negative_scores) / total_sentences
+        negative_sentence_prop = sum(neutral_scores) / total_sentences
+        
+        overall_positivity = positive_confidence / total_sentences
+        overall_negativity = negative_confidence / total_sentences
+        overall_neutrality = neutral_confidence / total_sentences
+    else:
+        positive_sentence_prop = 0.0
+        neutral_sentence_prop = 0.0
+        negative_sentence_prop = 0.0
+        
+        overall_positivity = 0.0
+        overall_negativity = 0.0
+        overall_neutrality = 0.0
     
     return {
         "overall_positivity": overall_positivity,
@@ -96,7 +100,7 @@ def calculate_sent_match_words(essay):
             matched_words = len(set(sentences[i].split()) & set(sentences[j].split()))
             max_matched_words = max(max_matched_words, matched_words)
             avg_matched_words += matched_words
-    avg_matched_words /= len(sentences)
+    avg_matched_words /= len(sentences) if len(sentences) > 0 else 1
     return {
         "max_matched_words": max_matched_words,
         "avg_matched_words": avg_matched_words
@@ -130,22 +134,31 @@ def calculate_prompt_adherence_features(essay, prompt, _bert_tokenizer, _bert_mo
     
 
     sentences = split_into_sentences(essay)
-    sentence_embeddings = get_embedding(sentences)
     
     # Move prompt embedding to CPU for calculations
     prompt_embedding = prompt_embedding[0].cpu()
     print(len(prompt_embedding))
     
-    # Calculate dot scores using vectorized operations
-    dot_scores = torch.stack([torch.dot(emb, prompt_embedding) for emb in sentence_embeddings])
-    
-    # Calculate features
-    features = {
-        "max_sentence_dot_score": dot_scores.max().item() ,
-        "mean_sentence_dot_score": dot_scores.mean().item() ,
-        "min_sentence_dot_score": dot_scores.min().item(),
-        "dot_score": torch.dot(get_embedding([essay])[0].cpu(), prompt_embedding).item()
-    }
+    if sentences:
+        sentence_embeddings = get_embedding(sentences)
+        # Calculate dot scores using vectorized operations
+        dot_scores = torch.stack([torch.dot(emb, prompt_embedding) for emb in sentence_embeddings])
+        
+        # Calculate features
+        features = {
+            "max_sentence_dot_score": dot_scores.max().item() ,
+            "mean_sentence_dot_score": dot_scores.mean().item() ,
+            "min_sentence_dot_score": dot_scores.min().item(),
+            "dot_score": torch.dot(get_embedding([essay])[0].cpu(), prompt_embedding).item()
+        }
+    else:
+        # Default values when no sentences found
+        features = {
+            "max_sentence_dot_score": 0.0,
+            "mean_sentence_dot_score": 0.0,
+            "min_sentence_dot_score": 0.0,
+            "dot_score": torch.dot(get_embedding([essay])[0].cpu(), prompt_embedding).item()
+        }
     
     return features
 
@@ -176,7 +189,12 @@ def calculate_sim(text1, text2, _bert_tokenizer, _bert_model):
     embedding2 = get_embedding(text2)
     
     # Calculate cosine similarity
-    similarity = torch.dot(embedding1, embedding2) / (torch.norm(embedding1) * torch.norm(embedding2))
+    norm1 = torch.norm(embedding1)
+    norm2 = torch.norm(embedding2)
+    if norm1 > 0 and norm2 > 0:
+        similarity = torch.dot(embedding1, embedding2) / (norm1 * norm2)
+    else:
+        similarity = torch.tensor(0.0)
     
     return similarity.item()
 

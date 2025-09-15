@@ -18,6 +18,8 @@ from collections import defaultdict
 import re
 from essay_proccessing import split_into_sentences
 import sys
+import torch
+import os
 
 # Import CamelParser modules
 # Ensure the camel_parser path is available
@@ -34,16 +36,25 @@ class ClauseAnalyzer:
     making it suitable for use as a modular component.
     """
     
-    def __init__(self, camel_parser_root="/data/home/marwan/camel_parser"):
+    def __init__(self, camel_parser_root="/data/home/marwan/camel_parser", device=None):
         """
         Initializes the CamelParser clause analyzer.
         
         Args:
             camel_parser_root (str): Path to the root of the camel_parser directory.
+            device: PyTorch device to use for GPU processing. If None, will use CUDA if available.
         """
         self.root_dir = Path(camel_parser_root)
         self.model_path = self.root_dir / "models"
         self.parse_model = "catib"
+        
+        # Set device for GPU usage
+        if device is None:
+            self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        else:
+            self.device = device
+        
+        # Silently set device
         
         self.arclean = CharMapper.builtin_mapper("arclean")
         
@@ -63,6 +74,21 @@ class ClauseAnalyzer:
         """
         Initialize the parser components once to avoid reinitialization.
         """
+        # Set environment variable to force GPU usage for supar
+        if self.device.type == 'cuda':
+            os.environ['CUDA_VISIBLE_DEVICES'] = '0'
+            # Force PyTorch to use GPU
+            torch.cuda.set_device(0)
+            # Set default tensor type to CUDA
+            torch.set_default_tensor_type('torch.cuda.FloatTensor')
+            # Silently configure GPU environment
+        else:
+            os.environ['CUDA_VISIBLE_DEVICES'] = ''
+        
+        # Initialize the parser once and reuse it
+        from src.dependency_parser.biaff_parser import parse_text_tuples
+        self.parser_model_path = str(self.model_path / self.model_name)
+        
         # Create a dummy TextParams to initialize the parsing components
         dummy_sentences = ["تجربة"]  # Simple test sentence
         self.text_params = TextParams(
@@ -74,7 +100,8 @@ class ClauseAnalyzer:
             self.tagset,
             self.morphology_db_type
         )
-        # Parse once to initialize all components
+        
+        # Parse once to initialize all components and cache the parser
         try:
             parse_text("text", self.text_params)
         except Exception:
@@ -85,10 +112,10 @@ class ClauseAnalyzer:
         Parses a list of sentences using the pre-initialized CamelParser.
         """
         try:
-            # Reuse the initialized text_params but update the sentences
-            self.text_params.lines = sentences
-            return parse_text("text", self.text_params)
-        except Exception:
+            # Use the cached parser directly instead of calling parse_text
+            from src.dependency_parser.biaff_parser import parse_text_tuples
+            return parse_text_tuples([[(0, word, '_', 'UNK', '_', '_', '_', '_', '_', '_') for word in sentence.split()] for sentence in sentences], self.parser_model_path)
+        except Exception as e:
             # Silently fail on parsing error
             return []
     

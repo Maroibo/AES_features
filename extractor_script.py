@@ -23,18 +23,41 @@ import numpy as np
 import os
 from tqdm import tqdm
 # contansts
-INPUT_FILE_PATH='../../../../shared/Arabic_Dataset/cleaned_cqc.csv'
+INPUT_FILE_PATH='/data/home/shared/Datasets/LAILA_Dataset/LAILA_data/Folds/all_data/LAILA_all_data.csv'
 INPUT_PARAGRAPHS_FILE_PATH='../../../../shared/Arabic_Dataset/cq_essay_paragraphs.csv'
-OUTPUT_FILE_PATH='./output_features/full_arabic_feature_set_prompts[1,2,3,4].csv'
+OUTPUT_FILE_PATH='./output_features/LAILA_full_feature_set.csv'
 OUTPUT_DIR='./output_features'
 PROMPTS_FILE_PATH='../../../../shared/Arabic_Dataset/arabic_prompts'
+# New JSON prompts path (local path without sftp scheme)
+PROMPTS_JSON_PATH='/data/home/shared/Datasets/LAILA_Dataset/LAILA_data/Prompts/json_files/all_prompts.json'
+
+import json
 
 def load_prompts():
-    prompts={}
-    for essay_set in [1,2,3,4]:
-        prompt_file=os.path.join(PROMPTS_FILE_PATH,f'prompt{essay_set}_text.txt')
-        with open(prompt_file, 'r', encoding='utf-8') as file:
-            prompts[essay_set]=file.read()
+    """Load prompts from a single JSON file and return mapping by prompt_id.
+
+    Returns a dict:
+        { prompt_id: { 'text': str, 'type': str, 'type_encoded': int } }
+    """
+    with open(PROMPTS_JSON_PATH, 'r', encoding='utf-8') as f:
+        data = json.load(f)
+
+    type_to_code = {
+        'persuasive': 1,
+        'explanatory': 2,
+    }
+
+    prompts = {}
+    for item in data:
+        prompt_id = item.get('prompt_id')
+        prompt_text = item.get('prompt_text', '')
+        prompt_type = item.get('prompt_type', '').strip().lower()
+        prompts[prompt_id] = {
+            'text': prompt_text,
+            'type': prompt_type,
+            'type_encoded': type_to_code.get(prompt_type, 0),
+        }
+
     return prompts
 
 def main():
@@ -46,8 +69,7 @@ def main():
     _default_tagger = get_tagger()
     _dialect_id=get_dialect_id()
     df=pd.read_csv(INPUT_FILE_PATH)
-    df=df[df.essay_set.isin([1,2,3,4])];
-    paragraphs_df=pd.read_csv(INPUT_PARAGRAPHS_FILE_PATH)
+    # paragraphs_df=pd.read_csv(INPUT_PARAGRAPHS_FILE_PATH)  # Old way: read pre-split paragraphs
     top_n_pos_tags=get_top_n_pos_tags(df['essay'],_mle_disambiguator,100)
     top_n_pos_bigrams=get_top_n_pos_bigrams(df['essay'],_mle_disambiguator,100)
     total_word_counts=get_top_n_words_from_essays(df['essay'],100)
@@ -61,20 +83,45 @@ def main():
     for index, row in tqdm(df.iterrows(), total=len(df), desc="Extracting features", unit="essay"):
         essay=row['essay']
         id=row['essay_id']
-        prompt=prompts[row['essay_set']]
-        intro_paragraph=paragraphs_df[paragraphs_df['essay_id']==id]['introduction'].values[0]
-        body_paragraph=paragraphs_df[paragraphs_df['essay_id']==id]['body'].values[0]
-        conclusion_paragraph=paragraphs_df[paragraphs_df['essay_id']==id]['conclusion'].values[0]
-        n_paragraphs = 3
-        if intro_paragraph is np.nan:
-            intro_paragraph=''
-            n_paragraphs -= 1
-        if body_paragraph is np.nan:
-            body_paragraph=''
-            n_paragraphs -= 1
-        if conclusion_paragraph is np.nan:
-            conclusion_paragraph=''
-            n_paragraphs -= 1
+        prompt_info = prompts.get(row['prompt_id'], {'text': '', 'type': '', 'type_encoded': 0})
+        prompt = prompt_info['text']
+        prompt_type_encoded = prompt_info['type_encoded']
+        # Old way: use paragraphs_df to get intro/body/conclusion
+        # intro_paragraph=paragraphs_df[paragraphs_df['essay_id']==id]['introduction'].values[0]
+        # body_paragraph=paragraphs_df[paragraphs_df['essay_id']==id]['body'].values[0]
+        # conclusion_paragraph=paragraphs_df[paragraphs_df['essay_id']==id]['conclusion'].values[0]
+        # n_paragraphs = 3
+        # if intro_paragraph is np.nan:
+        #     intro_paragraph=''
+        #     n_paragraphs -= 1
+        # if body_paragraph is np.nan:
+        #     body_paragraph=''
+        #     n_paragraphs -= 1
+        # if conclusion_paragraph is np.nan:
+        #     conclusion_paragraph=''
+        #     n_paragraphs -= 1
+
+        # New way: split paragraphs by newline characters from the essay text
+        raw_paragraphs = [p for p in normalize_unicode(essay).split('\n')]
+        paragraphs = [p.strip() for p in raw_paragraphs if p.strip() != '']
+        n_paragraphs = len(paragraphs)
+        if n_paragraphs == 0:
+            intro_paragraph = ''
+            body_paragraph = ''
+            conclusion_paragraph = ''
+        elif n_paragraphs == 1:
+            intro_paragraph = paragraphs[0]
+            body_paragraph = ''
+            conclusion_paragraph = ''
+        elif n_paragraphs == 2:
+            intro_paragraph = paragraphs[0]
+            body_paragraph = ''
+            conclusion_paragraph = paragraphs[1]
+        else:
+            # For 3+ paragraphs: first -> intro, last -> conclusion, middle -> body
+            intro_paragraph = paragraphs[0]
+            conclusion_paragraph = paragraphs[-1]
+            body_paragraph = '\n'.join(paragraphs[1:-1])
         longest_paragaph_length=max(len(intro_paragraph),len(body_paragraph),len(conclusion_paragraph))
         shortest_paragaph_length=min(len(intro_paragraph),len(body_paragraph),len(conclusion_paragraph))
         # Surface level features
@@ -129,9 +176,11 @@ def main():
 
         features_df=pd.concat([features_df,pd.DataFrame({
             'essay_id':id,
-            'essay_set':row['essay_set'],
+            'prompt_id':row['prompt_id'],
             'essay':essay,
             'prompt':prompt,
+            'prompt_type':prompt_info['type'],
+            'prompt_type_encoded':prompt_type_encoded,
             'relevance':row['relevance'],
             'organization':row['organization'],
             'vocabulary':row['vocabulary'],

@@ -2,11 +2,21 @@ from clause_features import ClauseAnalyzer
 import pandas as pd
 import os
 from tqdm import tqdm
+import torch
 
 # Constants
-INPUT_OUTPUT_FILE_PATH='./output_features/full_arabic_feature_set_prompts[1,2,3,4].csv'
+INPUT_OUTPUT_FILE_PATH='./output_features/LAILA_full_feature_set.csv'
 
 def main():
+    # Force GPU usage
+    if torch.cuda.is_available():
+        device = torch.device("cuda")
+        print(f"Using GPU: {torch.cuda.get_device_name(0)}")
+        print(f"GPU Memory: {torch.cuda.get_device_properties(0).total_memory / 1024**3:.1f} GB")
+    else:
+        print("CUDA not available, falling back to CPU")
+        device = torch.device("cpu")
+    
     # Check if the input file exists
     if not os.path.exists(INPUT_OUTPUT_FILE_PATH):
         print(f"Error: Input file {INPUT_OUTPUT_FILE_PATH} does not exist!")
@@ -15,7 +25,7 @@ def main():
     
     # Initialize clause analyzer ONCE before processing all essays
     print("Initializing clause analyzer (this may take a moment)...")
-    clause_analyzer = ClauseAnalyzer()
+    clause_analyzer = ClauseAnalyzer(device=device)
     print("Clause analyzer initialized successfully!")
     
     # Read the existing features file
