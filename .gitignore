@@ -6,4 +6,6 @@
 *.pywz
 *.pyzw
 *.pyzwz
+*.csv
+*.log
 __pycache__/
