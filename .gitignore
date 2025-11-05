@@ -8,4 +8,7 @@
 *.pyzwz
 *.csv
 *.log
+clause_prompt_extractor.py
+extractor_prompt.py
 __pycache__/
+features_analysis/

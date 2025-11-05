@@ -245,8 +245,8 @@ def create_bar_chart(target_col, subcategory_df, category_colors, output_dir, gl
         # Add spacing between categories
         current_pos += 0.5
     
-    # Create figure
-    plt.figure(figsize=(16, 10))
+    # Create figure - larger size for bigger fonts
+    plt.figure(figsize=(24, 15))
     
     # Create bars (set zorder to appear above grid)
     bars = plt.bar(x_positions, bar_values, color=bar_colors, alpha=0.8, zorder=3)
@@ -256,11 +256,14 @@ def create_bar_chart(target_col, subcategory_df, category_colors, output_dir, gl
         title = f"{target_col.upper()}"
     else:
         title = f"{target_col.upper()} - {dataset_name.replace('_', ' ').title()}"
-    plt.title(title, fontsize=16, fontweight='bold')
-    plt.ylabel('Absolute Correlation', fontsize=12)
+    plt.title(title, fontsize=32, fontweight='bold')
+    plt.ylabel('Absolute Correlation', fontsize=24)
     
     # Set x-axis labels
-    plt.xticks(x_positions, x_labels, rotation=45, ha='right')
+    plt.xticks(x_positions, x_labels, rotation=45, ha='right', fontsize=20)
+    
+    # Set y-axis tick label font size
+    plt.tick_params(axis='y', labelsize=20)
     
     # Calculate target-specific rankings
     subcategory_rankings = calculate_target_specific_subcategory_rankings(target_col, categorization, dataset_name)
@@ -274,11 +277,11 @@ def create_bar_chart(target_col, subcategory_df, category_colors, output_dir, gl
         if i < len(text_positions):
             pos = text_positions[i]
             plt.text(pos['x'], pos['y'], f'{value:.3f}', ha='center', va='bottom', 
-                    fontsize=10, fontweight='bold')
+                    fontsize=16, fontweight='bold')
         else:
             # Fallback to original positioning if something goes wrong
             plt.text(bar.get_x() + bar.get_width()/2, bar.get_height() + 0.003,
-                    f'{value:.3f}', ha='center', va='bottom', fontsize=10, fontweight='bold')
+                    f'{value:.3f}', ha='center', va='bottom', fontsize=16, fontweight='bold')
         
         # Add ranking number directly on the bar
         subcategory_name = x_labels[i]
@@ -289,7 +292,7 @@ def create_bar_chart(target_col, subcategory_df, category_colors, output_dir, gl
             text_x = bar.get_x() + bar.get_width()/2
             text_y = bar.get_height() - 0.02  # Position at the top of the bar
             plt.text(text_x, text_y, str(rank), ha='center', va='bottom', 
-                    fontsize=22, fontweight='bold', color='white', zorder=16)
+                    fontsize=28, fontweight='bold', color='white', zorder=16)
     
     # Add category mean rectangles with consistent y-axis range
     # Set y-axis limit to be consistent across all charts
@@ -316,7 +319,7 @@ def create_bar_chart(target_col, subcategory_df, category_colors, output_dir, gl
             wrapped_cat_name = wrap_category_text(main_cat)
             plt.text(rect_x + rect_width/2, rect_y + rect_height/2,
                     f'{wrapped_cat_name}\n{mean_val:.3f}', ha='center', va='center', 
-                    fontsize=10, fontweight='bold', color='white')
+                    fontsize=20, fontweight='bold', color='white')
     
     # Add vertical lines to separate main categories  
     for i, main_cat in enumerate(category_order[:-1]):  # Don't add line after last category
@@ -356,10 +359,10 @@ def create_combined_chart_from_pdfs(categorization, category_colors, output_dir,
     target_columns = ['holistic', 'relevance', 'vocabulary', 'style', 
                      'development', 'mechanics', 'grammar', 'organization']
     
-    # Create figure with subplots (3 rows, 3 columns) - Wider to ensure right padding
-    fig, axes = plt.subplots(3, 3, figsize=(60, 34))  # Increased width to ensure right padding
+    # Create figure with subplots (3 rows, 3 columns) - Much larger to accommodate bigger fonts
+    fig, axes = plt.subplots(3, 3, figsize=(80, 45))  # Significantly increased size for larger fonts
     dataset_title = dataset_name.replace('_', ' ').title()
-    fig.suptitle(f'Complete Feature Set Correlations - {dataset_title}', fontsize=28, fontweight='bold', y=0.98)
+    fig.suptitle(f'Complete Feature Set Correlations - {dataset_title}', fontsize=40, fontweight='bold', y=0.98)
     
     # Load all data for combined chart
     all_subplot_data = []
@@ -403,7 +406,7 @@ def create_combined_chart_from_pdfs(categorization, category_colors, output_dir,
         
         if subcategory_df is None or subcategory_df.empty:
             ax.text(0.5, 0.5, f"No data for\n{target_col}", ha='center', va='center', transform=ax.transAxes)
-            ax.set_title(target_col.upper(), fontsize=20, fontweight='bold', pad=20)
+            ax.set_title(target_col.upper(), fontsize=32, fontweight='bold', pad=20)
             ax.set_ylim(0, global_max_y * 1.35)
             continue
         
@@ -459,14 +462,14 @@ def create_combined_chart_from_pdfs(categorization, category_colors, output_dir,
         bars = ax.bar(x_positions, bar_values, color=bar_colors, alpha=0.8, zorder=3)
         
         # Set title with trait name in uppercase
-        ax.set_title(target_col.upper(), fontsize=20, fontweight='bold', pad=20)
+        ax.set_title(target_col.upper(), fontsize=48, fontweight='bold', pad=20)
         
         # Set x-axis labels
         ax.set_xticks(x_positions)
-        ax.set_xticklabels(x_labels, rotation=45, ha='right', fontsize=14)
+        ax.set_xticklabels(x_labels, rotation=45, ha='right', fontsize=24)
         
         # Set y-axis tick label font size
-        ax.tick_params(axis='y', labelsize=16)
+        ax.tick_params(axis='y', labelsize=28)
         
         # Calculate target-specific rankings for this subplot
         target_specific_rankings = calculate_target_specific_subcategory_rankings(target_col, categorization, dataset_name)
@@ -479,10 +482,10 @@ def create_combined_chart_from_pdfs(categorization, category_colors, output_dir,
             if i < len(text_positions):
                 pos = text_positions[i]
                 ax.text(pos['x'], pos['y'], f'{value:.3f}', ha='center', va='bottom', 
-                        fontsize=12, fontweight='bold')
+                        fontsize=20, fontweight='bold')
             else:
                 ax.text(bar.get_x() + bar.get_width()/2, bar.get_height() + 0.003,
-                        f'{value:.3f}', ha='center', va='bottom', fontsize=12, fontweight='bold')
+                        f'{value:.3f}', ha='center', va='bottom', fontsize=20, fontweight='bold')
             
             # Add ranking number directly on the bar
             subcategory_name = x_labels[i]
@@ -493,7 +496,7 @@ def create_combined_chart_from_pdfs(categorization, category_colors, output_dir,
                 text_x = bar.get_x() + bar.get_width()/2
                 text_y = bar.get_height() - 0.029  # Position at the top of the bar
                 ax.text(text_x, text_y, str(rank), ha='center', va='bottom', 
-                        fontsize=22, fontweight='bold', color='white', zorder=16)
+                        fontsize=32, fontweight='bold', color='white', zorder=16)
         
         # Add category mean rectangles with consistent y-axis range
         ax.set_ylim(0, global_max_y * 1.35)
@@ -516,7 +519,7 @@ def create_combined_chart_from_pdfs(categorization, category_colors, output_dir,
                 wrapped_cat_name = wrap_category_text(main_cat)
                 ax.text(rect_x + rect_width/2, rect_y + rect_height/2,
                         f'{wrapped_cat_name}\n{mean_val:.3f}', ha='center', va='center', 
-                        fontsize=14, fontweight='bold', color='white')
+                        fontsize=32, fontweight='bold', color='white')
         
         # Add vertical lines to separate main categories
         for i, main_cat in enumerate(category_order[:-1]):
@@ -532,7 +535,7 @@ def create_combined_chart_from_pdfs(categorization, category_colors, output_dir,
     
     # Add single y-axis label for the entire figure
     fig.text(0.03, 0.5, 'Absolute Correlation', va='center', rotation='vertical', 
-             fontsize=60, fontweight='bold')
+             fontsize=96, fontweight='bold')
     
     # Adjust layout with reduced spacing between columns and better title positioning
     # Use tight_layout with padding to ensure proper margins
@@ -599,7 +602,7 @@ def create_three_target_chart(categorization, category_colors, output_dir, aggre
         
         if subcategory_df is None or subcategory_df.empty:
             ax.text(0.5, 0.5, f"No data for\n{target_col}", ha='center', va='center', transform=ax.transAxes)
-            ax.set_title(target_col.upper(), fontsize=20, fontweight='bold', pad=20)
+            ax.set_title(target_col.upper(), fontsize=20, fontweight='bold', pad=5)
             ax.set_ylim(0, 0.4)  # Set chart range to end at exactly 0.4
             continue
         
@@ -655,7 +658,7 @@ def create_three_target_chart(categorization, category_colors, output_dir, aggre
         bars = ax.bar(x_positions, bar_values, color=bar_colors, alpha=0.8, zorder=3)
         
         # Set title with trait name in uppercase
-        ax.set_title(target_col.upper(), fontsize=20, fontweight='bold', pad=20)
+        ax.set_title(target_col.upper(), fontsize=20, fontweight='bold', pad=5)
         
         # Set x-axis labels - only show labels for the bottom subplot (last one)
         ax.set_xticks(x_positions)
