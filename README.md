@@ -230,6 +230,46 @@ The output CSV contains:
 - **CAMeL Tools**: https://github.com/CAMeL-Lab/camel_tools
 
 
+## Citation
+
+```bibtex
+@inproceedings{sayed-etal-2025-feature,
+
+    title = "Feature Engineering is not Dead: A Step Towards State of the Art for {A}rabic Automated Essay Scoring",
+    author = "Sayed, Marwan  and
+      Eltanbouly, Sohaila  and
+      Bashendy, May  and
+      Elsayed, Tamer",
+    editor = "Darwish, Kareem  and
+      Ali, Ahmed  and
+      Abu Farha, Ibrahim  and
+      Touileb, Samia  and
+      Zitouni, Imed  and
+      Abdelali, Ahmed  and
+      Al-Ghamdi, Sharefah  and
+      Alkhereyf, Sakhar  and
+      Zaghouani, Wajdi  and
+      Khalifa, Salam  and
+      AlKhamissi, Badr  and
+      Almatham, Rawan  and
+      Hamed, Injy  and
+      Alyafeai, Zaid  and
+      Alowisheq, Areeb  and
+      Inoue, Go  and
+      Mrini, Khalil  and
+      Alshammari, Waad",
+    booktitle = "Proceedings of The Third Arabic Natural Language Processing Conference",
+    month = nov,
+    year = "2025",
+    address = "Suzhou, China",
+    publisher = "Association for Computational Linguistics",
+    url = "https://aclanthology.org/2025.arabicnlp-main.19/",
+    pages = "231--245",
+    ISBN = "979-8-89176-352-4",
+    abstract = "Automated Essay Scoring (AES) has shown significant advancements in educational assessment. However, under-resourced languages like Arabic have received limited attention. To bridge this gap and enable robust Arabic AES, this paper introduces the $\\textit{first publicly-available}$ comprehensive set of engineered features tailored for Arabic AES, covering surface-level, readability, lexical, syntactic, and semantic features. Experiments are conducted on a dataset of 620 Arabic essays, each annotated with both holistic and trait-specific scores. Our findings demonstrate that the proposed feature set is effective across different models and competitive with recent NLP advances including LLMs, establishing the state-of-the-art performance and providing strong baselines for future Arabic AES research. Moroever, the resulting feature set offers a reusable and foundational resource, contributing towards the development of more effective Arabic AES systems."
+}
+```
+
 ## Authors
 
 - **Marwan Sayed** (me2104862@qu.edu.qa)
