@@ -5,7 +5,7 @@ from tqdm import tqdm
 import torch
 
 # Constants
-INPUT_OUTPUT_FILE_PATH='./output_features/LAILA_full_feature_set.csv'
+INPUT_OUTPUT_FILE_PATH='./output_features/example_full_feature_set.csv'
 
 def main():
     # Force GPU usage

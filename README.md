@@ -20,8 +20,6 @@ This repository provides a comprehensive feature extraction pipeline for Arabic 
 
 The feature set has been validated on a dataset of 620 Arabic essays and demonstrates competitive performance with state-of-the-art methods, including Large Language Models (LLMs).
 
-**Note**: A comprehensive features table file is included in this repository that lists all features with their descriptions, categories, and descriptions. Please refer to this file for complete information about each feature.
-
 ## File Structure
 
 ```
@@ -37,7 +35,7 @@ arab_nlp_features/
 ├── syntactic_features.py            # Syntactic and grammatical features
 ├── clause_features.py                # Clause analysis features
 ├── output_features/                  # Output directory for feature CSV files
-│   └── LAILA_full_feature_set.csv   # Essay features output
+│   └── example_full_feature_set.csv # Essay features output
 └── requirements.txt                  # Python dependencies
 ```
 
@@ -73,13 +71,6 @@ pip install --user --extra-index-url https://download.pytorch.org/whl/cu121 \
     matplotlib seaborn
 ```
 
-### System Requirements
-
-- **Python**: 3.8+
-- **GPU**: Recommended (CUDA 12.1+) for faster processing, but CPU works
-- **RAM**: At least 8GB recommended
-- **Disk Space**: ~5GB for models and data
-
 ### External Dependencies
 
 The scripts require:
@@ -100,8 +91,7 @@ The scripts require:
     ```
   - Make sure its models are downloaded (e.g., CATiB) and GPU is configured if available.
 
-OS-level tools (recommended):
-- Build tools for `kenlm` (e.g., `build-essential`, `cmake`, `gcc`, `g++` on Debian/Ubuntu)
+
 
 ## Input Data Structure
 
@@ -154,7 +144,7 @@ Update these constants at the top of `extractor_script.py`:
 
 ```python
 INPUT_FILE_PATH = '/path/to/your/essays.csv'           # Input CSV with essays
-OUTPUT_FILE_PATH = './output_features/LAILA_full_feature_set.csv'  # Output CSV
+OUTPUT_FILE_PATH = './output_features/TAQAE_full_feature_set.csv'  # Output CSV
 OUTPUT_DIR = './output_features'                       # Output directory
 PROMPTS_JSON_PATH = '/path/to/all_prompts.json'        # Prompts JSON file
 ```
@@ -174,7 +164,7 @@ This will:
 2. Load essays from the input CSV
 3. Load prompts from the JSON file
 4. Extract features for each essay
-5. Save results to `./output_features/LAILA_full_feature_set.csv`
+5. Save results to `./output_features/TAQAE_full_feature_set.csv`
 
 **Output**: CSV file with ~812 columns (essay_id, prompt_id, essay text, scores, and all features)
 
@@ -188,7 +178,7 @@ Clause features require additional processing and are extracted separately:
 python clause_extractor.py
 ```
 
-This reads `./output_features/LAILA_full_feature_set.csv` and adds the following clause features:
+This reads `./output_features/TAQAE_full_feature_set.csv` and adds the following clause features:
 - `mean_clause`: Average number of tokens per clause
 - `clause_per_s`: Clauses per sentence ratio
 - `sent_ave_depth`: Average dependency tree depth per sentence
@@ -222,17 +212,6 @@ The output CSV contains:
 - **Score columns**: `relevance`, `organization`, `vocabulary`, `style`, `development`, `mechanics`, `grammar`, `holistic` (if provided)
 - **Feature columns**: All ~800+ extracted features
 
-## Experimental Results
-
-The feature set has been evaluated on a dataset of 620 Arabic essays with the following results:
-
-- **Effective across different models**: Linear Regression, Neural Networks, and other baseline models
-- **Competitive with LLMs**: Performance comparable to recent Large Language Model approaches
-- **State-of-the-art performance**: Establishes new benchmarks for Arabic AES
-- **Strong baselines**: Provides reusable foundation for future Arabic AES research
-
-For detailed experimental results and analysis, please refer to the paper.
-
 ## Notes
 
 - **Paragraph Splitting**: Essays are automatically split into intro/body/conclusion based on newline characters:
@@ -246,24 +225,10 @@ For detailed experimental results and analysis, please refer to the paper.
 
 - **Feature Set Design**: The feature set is designed to be comprehensive yet efficient, covering multiple linguistic dimensions while maintaining computational feasibility.
 
-## Citation
-
-If you use this codebase or feature set in your research, please cite:
-
-```bibtex
-@article{sayed2024feature,
-  title={Feature Engineering is not Dead: A Step Towards State of the Art for Arabic Automated Essay Scoring},
-  author={Sayed, Marwan and Eltanbouly, Sohaila and Bashendy, May and Elsayed, Tamer},
-  journal={[Journal Name]},
-  year={2024},
-  institution={Computer Science and Engineering Department, Qatar University, Doha, Qatar}
-}
-```
-
 ## Acknowledgments
 
 - **CAMeL Tools**: https://github.com/CAMeL-Lab/camel_tools
-- **LAILA Dataset**: For providing the evaluation dataset
+
 
 ## Authors
 

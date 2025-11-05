@@ -23,13 +23,13 @@ import numpy as np
 import os
 from tqdm import tqdm
 # contansts
-INPUT_FILE_PATH='/data/home/shared/Datasets/LAILA_Dataset/LAILA_data/Folds/all_data/LAILA_all_data.csv'
+INPUT_FILE_PATH='/path/to/your/essays.csv'
 INPUT_PARAGRAPHS_FILE_PATH='../../../../shared/Arabic_Dataset/cq_essay_paragraphs.csv'
-OUTPUT_FILE_PATH='./output_features/LAILA_full_feature_set.csv'
+OUTPUT_FILE_PATH='./output_features/example_full_feature_set.csv'
 OUTPUT_DIR='./output_features'
 PROMPTS_FILE_PATH='../../../../shared/Arabic_Dataset/arabic_prompts'
 # New JSON prompts path (local path without sftp scheme)
-PROMPTS_JSON_PATH='/data/home/shared/Datasets/LAILA_Dataset/LAILA_data/Prompts/json_files/all_prompts.json'
+PROMPTS_JSON_PATH='/path/to/all_prompts.json'
 
 import json
 
